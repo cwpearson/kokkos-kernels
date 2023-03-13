@@ -1,3 +1,5 @@
+message(STATUS IN HERE)
+
 if (KokkosKernels_ENABLE_PERFTESTS)
     KOKKOSKERNELS_INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
     KOKKOSKERNELS_INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
@@ -63,4 +65,10 @@ if(KokkosKernels_ENABLE_BENCHMARK)
         blas/blas1/KokkosBlas_team_dot_perf_test_benchmark.cpp
         BenchmarkMain.cpp
     )
+
+    KOKKOSKERNELS_ADD_BENCHMARK(
+      Spmv_Bsr_Benchmark
+      SOURCES spmv_bsr_benchmark.cpp
+    )
+
 endif()

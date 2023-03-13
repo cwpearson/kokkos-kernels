@@ -25,6 +25,7 @@
 #include "KokkosKernels_Error.hpp"
 #if !defined(KOKKOSKERNELS_ETI_ONLY) || KOKKOSKERNELS_IMPL_COMPILE_LIBRARY
 #include <KokkosSparse_spmv_bsrmatrix_impl.hpp>
+#include "KokkosSparse_spmv_bsrmatrix_impl_tpetra.hpp"
 #endif
 
 namespace KokkosSparse {
@@ -173,8 +174,9 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
   typedef typename YVector::non_const_value_type YScalar;
 
   enum class Method {
-    Fallback,    ///< Don't use tensor cores
-    TensorCores  ///< use tensor cores
+    Fallback,     ///< Don't use tensor cores
+    TensorCores,  ///< use tensor cores
+    Tpetra        ///< Use the implementation cribbed from Tpetra
   };
 
   /// Precision to use in the tensor core implementation
@@ -289,7 +291,16 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
         return;
       }
     }
-#endif  // KOKKOS_ARCH
+#endif  // defined(KOKKOS_ENABLE_CUDA) && defined(KOKKOS_ARCH_AMPERE)
+
+    if ((mode[0] == KokkosSparse::NoTranspose[0])) {
+      if (controls.isParameter("algorithm") &&
+          (controls.getParameter("algorithm") == "tpetra")) {
+        KokkosSparse::Impl::bcrsLocalApplyNoTrans(alpha, A.graph, A.values,
+                                                  A.blockDim(), X, beta, Y);
+        return;
+      }
+    }
 
     if ((mode[0] == NoTranspose[0]) || (mode[0] == Conjugate[0])) {
       bool useConjugate = (mode[0] == Conjugate[0]);
