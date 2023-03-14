@@ -103,30 +103,30 @@ struct SpmvTpetra {
   static std::string name() { return "tpetra"; }
 };
 
-struct SpmvSparc {
+struct SpmvApp {
   template <typename Alpha, typename Matrix, typename XView, typename Beta,
             typename YView>
   static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
                    const XView &x, const Beta &beta, const YView &y) {
     KokkosKernels::Experimental::Controls controls;
-    controls.setParameter("algorithm", "sparc");
+    controls.setParameter("algorithm", "app");
     return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
   }
 
-  static std::string name() { return "sparc"; }
+  static std::string name() { return "app"; }
 };
 
-struct SpmvModifiedSparc {
+struct SpmvModifiedApp {
   template <typename Alpha, typename Matrix, typename XView, typename Beta,
             typename YView>
   static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
                    const XView &x, const Beta &beta, const YView &y) {
     KokkosKernels::Experimental::Controls controls;
-    controls.setParameter("algorithm", "modified_sparc");
+    controls.setParameter("algorithm", "modified_app");
     return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
   }
 
-  static std::string name() { return "modified_sparc"; }
+  static std::string name() { return "modified_app"; }
 };
 
 struct SpmvDefault {
@@ -175,8 +175,8 @@ void run(benchmark::State &state, const Bsr &bsr, const size_t k) {
   scalar_type beta = 0;
 #else
   fill_random(x, random_pool, 0.0, 1.0);
-  scalar_type alpha = 1; // Sparc only supports alpha=1
-  scalar_type beta  = 0; // Sparc only supports beta=0
+  scalar_type alpha = 1; // App only supports alpha=1
+  scalar_type beta  = 0; // App only supports beta=0
 #endif
 
   Kokkos::deep_copy(y_act, y_init);
@@ -330,28 +330,24 @@ void register_path(const fs::path &path) {
                                                                  detectedSize);
     register_converts<int, float, unsigned, Device, SpmvTpetra>(path,
                                                                 detectedSize);
-    register_converts<int, float, unsigned, Device, SpmvSparc>(path,
-                                                               detectedSize);
-    register_converts<int, float, unsigned, Device, SpmvModifiedSparc>(path,
+    register_converts<int, float, unsigned, Device, SpmvApp>(path,
                                                                detectedSize);
     register_converts<int64_t, double, uint64_t, Device, SpmvDefault>(
         path, detectedSize);
     register_converts<int64_t, double, uint64_t, Device, SpmvTpetra>(
         path, detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvSparc>(
-        path, detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvModifiedSparc>(
+    register_converts<int64_t, double, uint64_t, Device, SpmvApp>(
         path, detectedSize);
   } else {
     std::cerr << "benchmarks will expand each non-zero into a larger block\n";
-    register_expands<int, float, unsigned, Device, SpmvDefault>(path);
-    register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
-    register_expands<int, float, unsigned, Device, SpmvSparc>(path);
-    register_expands<int, float, unsigned, Device, SpmvModifiedSparc>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvSparc>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvModifiedSparc>(path);
+    // register_expands<int, float, unsigned, Device, SpmvDefault>(path);
+    // register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
+    register_expands<int, float, unsigned, Device, SpmvApp>(path);
+    register_expands<int, float, unsigned, Device, SpmvModifiedApp>(path);
+    // register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
+    // register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvApp>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvModifiedApp>(path);
   }
 }
 

@@ -26,7 +26,11 @@
 #if !defined(KOKKOSKERNELS_ETI_ONLY) || KOKKOSKERNELS_IMPL_COMPILE_LIBRARY
 #include <KokkosSparse_spmv_bsrmatrix_impl.hpp>
 #include "KokkosSparse_spmv_bsrmatrix_impl_tpetra.hpp"
+<<<<<<< HEAD
 #include "KokkosSparse_spmv_bsrmatrix_impl_sparc.hpp"
+=======
+#include "KokkosSparse_spmv_bsrmatrix_impl_app.hpp"
+>>>>>>> 3afb3771c (Tpetra kernel, App kernel, Modified App kernel with alpha/beta support)
 #endif
 
 namespace KokkosSparse {
@@ -159,13 +163,13 @@ struct SPMV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM, false,
         return;
       }
       if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "sparc")) {
-        KokkosSparse::Impl::apply_sparc(alpha, A, X, beta, Y);
+          (controls.getParameter("algorithm") == "app")) {
+        KokkosSparse::Impl::apply_app(alpha, A, X, beta, Y);
         return;
       }
       if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "modified_sparc")) {
-            KokkosSparse::Impl::apply_modified_sparc(alpha, A, X, beta, Y);
+          (controls.getParameter("algorithm") == "modified_app")) {
+            KokkosSparse::Impl::apply_modified_app(alpha, A, X, beta, Y);
         return;
       }
     }
@@ -321,13 +325,15 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
         return;
       }
       if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "sparc")) {
-        KokkosSparse::Impl::apply_sparc(alpha, A, X, beta, Y);
+          (controls.getParameter("algorithm") == "app")) {
+            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
+        KokkosSparse::Impl::apply_app(alpha, A, X, beta, Y);
         return;
       }
       if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "modified_sparc")) {
-        KokkosSparse::Impl::apply_modified_sparc(alpha, A, X, beta, Y);
+          (controls.getParameter("algorithm") == "modified_app")) {
+            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
+        KokkosSparse::Impl::apply_modified_app(alpha, A, X, beta, Y);
         return;
       }
     }
