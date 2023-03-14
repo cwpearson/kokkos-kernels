@@ -625,7 +625,7 @@ class BcrsApplyNoTransFunctor<AlphaCoeffType, GraphType, MatrixValuesType,
       // Precompute to save integer math in the inner loop.
       const offset_type bs2 = blockSize_ * blockSize_;
       little_block_type A_cur(val_.data(), blockSize_, blockSize_);
-      auto X_cur = subview(X_, ::Kokkos::make_pair(0, blockSize_));
+      auto X_cur = subview(X_, ::Kokkos::make_pair(local_ordinal_type(0), blockSize_));
       Kokkos::parallel_for(
           Kokkos::TeamThreadRange(member, blkBeg, blkEnd),
           [&](const local_ordinal_type& absBlkOff) {
