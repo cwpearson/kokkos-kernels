@@ -225,6 +225,7 @@ void register_path(const fs::path &path) {
                                                     void, Offset>;
   using Crs = KokkosSparse::CrsMatrix<Scalar, Ordinal, Device, void, Offset>;
 
+  std::cerr << "read " << path << "\n";
   const Crs crs =
       KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
   size_t detectedSize = KokkosSparse::Impl::detect_block_size(crs);
@@ -270,11 +271,16 @@ int main(int argc, char **argv) {
   KokkosKernelsBenchmark::add_benchmark_context(true);
 
   for (int i = 1; i < argc; ++i) {
+#if defined(KOKKOS_ENABLE_CUDA)
+    register_path<int, float, unsigned, Kokkos::Cuda, SpmvDefault>(argv[i]);
+    register_path<int, float, unsigned, Kokkos::Cuda, SpmvTpetra>(argv[i]);
+    register_path<int64_t, double, uint64_t, Kokkos::Cuda, SpmvDefault>(argv[i]);
+    register_path<int64_t, double, uint64_t, Kokkos::Cuda, SpmvTpetra>(argv[i]);
+#endif
 #if defined(KOKKOS_ENABLE_SERIAL)
     register_path<int, float, unsigned, Kokkos::Serial, SpmvDefault>(argv[i]);
     register_path<int, float, unsigned, Kokkos::Serial, SpmvTpetra>(argv[i]);
-    register_path<int64_t, double, size_t, Kokkos::Serial, SpmvDefault>(
-        argv[i]);
+    register_path<int64_t, double, size_t, Kokkos::Serial, SpmvDefault>(argv[i]);
     register_path<int64_t, double, size_t, Kokkos::Serial, SpmvTpetra>(argv[i]);
 #endif
   }
