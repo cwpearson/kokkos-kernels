@@ -227,7 +227,7 @@ void register_path(const fs::path &path) {
 
   const Crs crs =
       KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
-  size_t bs = KokkosSparse::Impl::detect_block_size(crs);
+  size_t detectedSize = KokkosSparse::Impl::detect_block_size(crs);
 
   std::vector<size_t> ks = {1, 3};
 
@@ -235,15 +235,15 @@ void register_path(const fs::path &path) {
      expanding the matrix.
      Otherwise, expand the matrix to some arbitrary block sizes to test BSR
   */
-  if (bs != 1) {
+  if (detectedSize != 1) {
     for (size_t k : ks) {  // multivector sizes
       std::string name =
           std::string("MatrixMarketConvert") + "/" + std::string(path.stem()) +
           "/" + as_string<Scalar>() + "/" + as_string<Ordinal>() + "/" +
-          as_string<Offset>() + "/" + std::to_string(bs) + "/" +
+          as_string<Offset>() + "/" + std::to_string(detectedSize) + "/" +
           std::to_string(k) + "/" + Spmv::name() + "/" + as_string<Device>();
       benchmark::RegisterBenchmark(name.c_str(), read_convert_run<Bsr, Spmv>,
-                                   path, bs, k)
+                                   path, detectedSize, k)
           ->UseRealTime();
     }
   } else {
