@@ -231,6 +231,10 @@ void register_path(const fs::path &path) {
 
   std::vector<size_t> ks = {1, 3};
 
+  /* If a block size can be detected, just use that block size without
+     expanding the matrix.
+     Otherwise, expand the matrix to some arbitrary block sizes to test BSR
+  */
   if (bs != 1) {
     for (size_t k : ks) {  // multivector sizes
       std::string name =
@@ -243,7 +247,7 @@ void register_path(const fs::path &path) {
           ->UseRealTime();
     }
   } else {
-    for (size_t bs : {3, 5}) {  // block sizes
+    for (size_t bs : {3, 7}) {  // block sizes
       for (size_t k : ks) {     // multivector sizes
         std::string name = std::string("MatrixMarketExpanded") + "/" +
                            std::string(path.stem()) + "/" +
