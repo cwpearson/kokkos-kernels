@@ -30,15 +30,6 @@ std::string as_string<uint64_t>() {
 }
 
 template <>
-std::string as_string<unsigned long>() {
-  switch (sizeof(unsigned long)) {
-    case 4: return "u32";
-    case 8: return "u64";
-    default: return "u??";
-  }
-}
-
-template <>
 std::string as_string<uint32_t>() {
   return "u32";
 }
