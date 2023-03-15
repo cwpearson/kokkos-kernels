@@ -283,17 +283,16 @@ void register_path(const fs::path &path) {
   using Crs = KokkosSparse::CrsMatrix<ReadScalar, ReadOrdinal, Device, void, ReadOffset>;
 
   size_t detectedSize;
-  {
-    std::cerr << "read " << path << "...";
-    try {
-      const Crs crs =
-          KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
-      detectedSize = KokkosSparse::Impl::detect_block_size(crs);
-      std::cerr << "detected block size = " << detectedSize << "\n";
-    } catch (const std::exception& e) {
-      std::cerr << "\nerror while reading: " << e.what() << "\n"
-                << "skipping!\n";
-    }
+  try {
+    std::cerr << "read " << path << "...\n";
+    const Crs crs =
+        KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
+    std::cerr << "detect block sizes...\n";
+    detectedSize = KokkosSparse::Impl::detect_block_size(crs);
+    std::cerr << "detected block size = " << detectedSize << "\n";
+  } catch (const std::exception& e) {
+    std::cerr << "ERROR while reading: " << e.what() << "\n"
+              << "skipping!\n";
   }
 
   /* If a block size can be detected, just use that block size without
