@@ -99,7 +99,7 @@ Bsr blocked_crs_to_bsr(const Crs &crs, size_t blockSize) {
   std::vector<bsr_value_type> vals;
   std::vector<bsr_ordinal_type> rows, cols;
 
-  vals.reserve(crs.nnz());ß
+  vals.reserve(crs.nnz());
   rows.reserve(crs.nnz());
   cols.reserve(crs.nnz());
 
