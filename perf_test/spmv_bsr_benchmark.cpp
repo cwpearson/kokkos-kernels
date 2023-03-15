@@ -103,6 +103,19 @@ struct SpmvTpetra {
   static std::string name() { return "tpetra"; }
 };
 
+struct SpmvSparc {
+  template <typename Alpha, typename Matrix, typename XView, typename Beta,
+            typename YView>
+  static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
+                   const XView &x, const Beta &beta, const YView &y) {
+    KokkosKernels::Experimental::Controls controls;
+    controls.setParameter("algorithm", "sparc");
+    return KokkosSparse::spmv(mode, alpha, crs, x, beta, y);
+  }
+
+  static std::string name() { return "sparc"; }
+};
+
 struct SpmvDefault {
   template <typename Alpha, typename Matrix, typename XView, typename Beta,
             typename YView>
@@ -220,47 +233,89 @@ void read_convert_run(benchmark::State &state, const fs::path &path,
 
 template <typename Ordinal, typename Scalar, typename Offset, typename Device,
           typename Spmv>
-void register_path(const fs::path &path) {
+void register_expands(const fs::path &path) {
   using Bsr = KokkosSparse::Experimental::BsrMatrix<Scalar, Ordinal, Device,
                                                     void, Offset>;
-  using Crs = KokkosSparse::CrsMatrix<Scalar, Ordinal, Device, void, Offset>;
-
-  std::cerr << "read " << path << "\n";
-  const Crs crs =
-      KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
-  size_t detectedSize = KokkosSparse::Impl::detect_block_size(crs);
-
   std::vector<size_t> ks = {1, 3};
+  for (size_t bs : {3, 7}) {  // block sizes
+    for (size_t k : ks) {     // multivector sizes
+      std::string name = std::string("MatrixMarketExpanded") + "/" +
+                         std::string(path.stem()) + "/" +
+                         as_string<Scalar>() + "/" + as_string<Ordinal>() +
+                         "/" + as_string<Offset>() + "/" +
+                         std::to_string(bs) + "/" + std::to_string(k) + "/" +
+                         Spmv::name() + "/" + as_string<Device>();
+      benchmark::RegisterBenchmark(name.c_str(), read_expand_run<Bsr, Spmv>,
+                                   path, bs, k)
+          ->UseRealTime();
+    }
+  }
+}
+
+template <typename Ordinal, typename Scalar, typename Offset, typename Device,
+          typename Spmv>
+void register_converts(const fs::path &path, size_t bs) {
+  using Bsr = KokkosSparse::Experimental::BsrMatrix<Scalar, Ordinal, Device,
+                                                    void, Offset>;
+  std::vector<size_t> ks = {1, 3};
+
+  for (size_t k : ks) {  // multivector sizes
+    std::string name =
+        std::string("MatrixMarketConvert") + "/" + std::string(path.stem()) +
+        "/" + as_string<Scalar>() + "/" + as_string<Ordinal>() + "/" +
+        as_string<Offset>() + "/" + std::to_string(bs) + "/" +
+        std::to_string(k) + "/" + Spmv::name() + "/" + as_string<Device>();
+    benchmark::RegisterBenchmark(name.c_str(), read_convert_run<Bsr, Spmv>,
+                                 path, bs, k)
+        ->UseRealTime();
+  }
+}
+
+template <typename Device>
+void register_path(const fs::path &path) {
+
+
+  using ReadScalar = double;
+  using ReadOrdinal = int64_t;
+  using ReadOffset = uint64_t;
+  using Bsr = KokkosSparse::Experimental::BsrMatrix<ReadScalar, ReadOrdinal, Device,
+                                                    void, ReadOffset>;
+  using Crs = KokkosSparse::CrsMatrix<ReadScalar, ReadOrdinal, Device, void, ReadOffset>;
+
+  size_t detectedSize;
+  {
+    std::cerr << "read " << path << "...";
+    try {
+      const Crs crs =
+          KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
+      detectedSize = KokkosSparse::Impl::detect_block_size(crs);
+      std::cerr << "detected block size = " << detectedSize << "\n";
+    } catch (const std::exception& e) {
+      std::cerr << "\nerror while reading: " << e.what() << "\n"
+                << "skipping!\n";
+    }
+  }
 
   /* If a block size can be detected, just use that block size without
      expanding the matrix.
      Otherwise, expand the matrix to some arbitrary block sizes to test BSR
   */
   if (detectedSize != 1) {
-    for (size_t k : ks) {  // multivector sizes
-      std::string name =
-          std::string("MatrixMarketConvert") + "/" + std::string(path.stem()) +
-          "/" + as_string<Scalar>() + "/" + as_string<Ordinal>() + "/" +
-          as_string<Offset>() + "/" + std::to_string(detectedSize) + "/" +
-          std::to_string(k) + "/" + Spmv::name() + "/" + as_string<Device>();
-      benchmark::RegisterBenchmark(name.c_str(), read_convert_run<Bsr, Spmv>,
-                                   path, detectedSize, k)
-          ->UseRealTime();
-    }
+    std::cerr << "benchmarks will use detected blocksize\n";
+    register_converts<int, float, unsigned, Device, SpmvDefault>(path, detectedSize);
+    register_converts<int, float, unsigned, Device, SpmvTpetra>(path, detectedSize);
+    register_converts<int, float, unsigned, Device, SpmvSparc>(path, detectedSize);
+    register_converts<int64_t, double, uint64_t, Device, SpmvDefault>(path, detectedSize);
+    register_converts<int64_t, double, uint64_t, Device, SpmvTpetra>(path, detectedSize);
+    register_converts<int64_t, double, uint64_t, Device, SpmvSparc>(path, detectedSize);
   } else {
-    for (size_t bs : {3, 7}) {  // block sizes
-      for (size_t k : ks) {     // multivector sizes
-        std::string name = std::string("MatrixMarketExpanded") + "/" +
-                           std::string(path.stem()) + "/" +
-                           as_string<Scalar>() + "/" + as_string<Ordinal>() +
-                           "/" + as_string<Offset>() + "/" +
-                           std::to_string(bs) + "/" + std::to_string(k) + "/" +
-                           Spmv::name() + "/" + as_string<Device>();
-        benchmark::RegisterBenchmark(name.c_str(), read_expand_run<Bsr, Spmv>,
-                                     path, bs, k)
-            ->UseRealTime();
-      }
-    }
+    std::cerr << "benchmarks will expand each non-zero into a larger block\n";
+    register_expands<int, float, unsigned, Device, SpmvDefault>(path);
+    register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
+    register_expands<int, float, unsigned, Device, SpmvSparc>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvSparc>(path);
   }
 }
 
@@ -272,16 +327,11 @@ int main(int argc, char **argv) {
 
   for (int i = 1; i < argc; ++i) {
 #if defined(KOKKOS_ENABLE_CUDA)
-    register_path<int, float, unsigned, Kokkos::Cuda, SpmvDefault>(argv[i]);
-    register_path<int, float, unsigned, Kokkos::Cuda, SpmvTpetra>(argv[i]);
-    register_path<int64_t, double, uint64_t, Kokkos::Cuda, SpmvDefault>(argv[i]);
-    register_path<int64_t, double, uint64_t, Kokkos::Cuda, SpmvTpetra>(argv[i]);
+    register_path<Kokkos::Cuda>(argv[i]);
 #endif
 #if defined(KOKKOS_ENABLE_SERIAL)
-    register_path<int, float, unsigned, Kokkos::Serial, SpmvDefault>(argv[i]);
-    register_path<int, float, unsigned, Kokkos::Serial, SpmvTpetra>(argv[i]);
-    register_path<int64_t, double, size_t, Kokkos::Serial, SpmvDefault>(argv[i]);
-    register_path<int64_t, double, size_t, Kokkos::Serial, SpmvTpetra>(argv[i]);
+    register_path<Kokkos::Serial>(argv[i]);
+
 #endif
   }
 
