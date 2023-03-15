@@ -21,73 +21,62 @@
 
 namespace KokkosKernelsBenchmark {
 
+template <typename...> inline constexpr bool always_false = false;
+
 template <typename T>
-std::string as_string();
+std::string as_string() {
+  // On mac,
+  // uint64_t = unsigned long long
+  // uint32_t = unsigned
+  // so we have to have an unsigned long test
 
-template <>
-std::string as_string<uint64_t>() {
-  return "u64";
-}
-
-template <>
-std::string as_string<uint32_t>() {
-  return "u32";
-}
-
-template <>
-std::string as_string<int64_t>() {
-  return "i64";
-}
-
-template <>
-std::string as_string<int32_t>() {
-  return "i32";
-}
-
-template <>
-std::string as_string<float>() {
-  return "f32";
-}
-
-template <>
-std::string as_string<double>() {
-  return "f64";
-}
-
+  if constexpr (false) { // formatting consistency
+  } else if constexpr(std::is_same_v<T, uint64_t>) {
+    return "u64";
+  } else if constexpr(std::is_same_v<T, uint32_t>) {
+    return "u32";
+  } else if constexpr(std::is_same_v<T, unsigned long>) {
+    return "ul";
+  } else if constexpr(std::is_same_v<T, uint32_t>) {
+    return "u32";
+  } else if constexpr(std::is_same_v<T, int64_t>) {
+    return "i64";
+  } else if constexpr(std::is_same_v<T, int32_t>) {
+    return "i32";
+  } else if constexpr(std::is_same_v<T, float>) {
+    return "f32";
+  } else if constexpr(std::is_same_v<T, double>) {
+    return "f64";
+  } 
 #if defined(KOKKOS_ENABLE_CUDA)
-template <>
-std::string as_string<Kokkos::Cuda>() {
-  return "CUDA";
-}
+  else if constexpr(std::is_same_v<T, Kokkos::Cuda>) {
+    return "CUDA";
+  }
 #endif
-
 #if defined(KOKKOS_ENABLE_OPENMP)
-template <>
-std::string as_string<Kokkos::OpenMP>() {
-  return "OpenMP";
-}
+  else if constexpr(std::is_same_v<T, Kokkos::OpenMP>) {
+    return "OpenMP";
+  }
 #endif
-
 #if defined(KOKKOS_ENABLE_SERIAL)
-template <>
-std::string as_string<Kokkos::Serial>() {
-  return "Serial";
-}
+  else if constexpr(std::is_same_v<T, Kokkos::Serial>) {
+    return "Serial";
+  }
 #endif
-
 #if defined(KOKKOS_ENABLE_SYCL)
-template <>
-std::string as_string<Kokkos::SYCL>() {
-  return "SYCL";
-}
+  else if constexpr(std::is_same_v<T, Kokkos::SYCL>) {
+    return "SYCL";
+  }
 #endif
-
 #if defined(KOKKOS_ENABLE_HIP)
-template <>
-std::string as_string<Kokkos::HIP>() {
-  return "HIP";
-}
+  else if constexpr(std::is_same_v<T, Kokkos::HIP>) {
+    return "HIP";
+  }
 #endif
+  else {
+    static_assert(always_false<T>, "unhandled type for as_string");
+  }
+}
 
 class WrappedBool {
  public:
