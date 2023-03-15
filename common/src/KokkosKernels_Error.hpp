@@ -18,12 +18,18 @@
 #define KOKKOSKERNELS_ERROR_HPP
 
 #include <stdexcept>
+#include <sstream>
+#include <optional>
 
 namespace KokkosKernels {
 namespace Impl {
 
 inline void throw_runtime_exception(const std::string &msg) {
   throw std::runtime_error(msg);
+}
+
+inline void throw_runtime_exception(const std::stringstream &msg) {
+  throw std::runtime_error(msg.str());
 }
 
 #if defined(KOKKOS_ENABLE_HIP)
