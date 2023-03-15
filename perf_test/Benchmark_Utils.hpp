@@ -21,6 +21,7 @@
 
 namespace KokkosKernelsBenchmark {
 
+// for use in static asserts
 template <typename...> inline constexpr bool always_false = false;
 
 template <typename T>
@@ -36,7 +37,13 @@ std::string as_string() {
   } else if constexpr(std::is_same_v<T, uint32_t>) {
     return "u32";
   } else if constexpr(std::is_same_v<T, unsigned long>) {
-    return "ul";
+    if constexpr (sizeof(T) == 4) {
+      return "u32";
+    } else if constexpr (sizeof(T) == 8) {
+      return "u64";
+    } else {
+      static_assert(always_false<T>, "unexpected size of unsigned long");
+    }
   } else if constexpr(std::is_same_v<T, uint32_t>) {
     return "u32";
   } else if constexpr(std::is_same_v<T, int64_t>) {
