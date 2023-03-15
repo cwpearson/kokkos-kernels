@@ -26,6 +26,7 @@
 #if !defined(KOKKOSKERNELS_ETI_ONLY) || KOKKOSKERNELS_IMPL_COMPILE_LIBRARY
 #include <KokkosSparse_spmv_bsrmatrix_impl.hpp>
 #include "KokkosSparse_spmv_bsrmatrix_impl_tpetra.hpp"
+#include "KokkosSparse_spmv_bsrmatrix_impl_sparc.hpp"
 #endif
 
 namespace KokkosSparse {
@@ -298,6 +299,11 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
           (controls.getParameter("algorithm") == "tpetra")) {
         KokkosSparse::Impl::bcrsLocalApplyNoTrans(alpha, A.graph, A.values,
                                                   A.blockDim(), X, beta, Y);
+        return;
+      }
+      if (controls.isParameter("algorithm") &&
+          (controls.getParameter("algorithm") == "sparc")) {
+        KokkosSparse::Impl::apply_sparc(alpha, A, X, beta, Y);
         return;
       }
     }
