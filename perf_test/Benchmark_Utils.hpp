@@ -19,6 +19,8 @@
 #ifndef KOKKOSKERNELS_PERFTEST_BENCHMARK_UTILS_HPP
 #define KOKKOSKERNELS_PERFTEST_BENCHMARK_UTILS_HPP
 
+#include "KokkosKernels_Unreachable.hpp"
+
 namespace KokkosKernelsBenchmark {
 
 // for use in static asserts
@@ -32,29 +34,50 @@ std::string as_string() {
   // uint32_t = unsigned
   // so we have to have an unsigned long test
 
-  if constexpr (false) {  // formatting consistency
-  } else if constexpr (std::is_same_v<T, uint64_t>) {
-    return "u64";
-  } else if constexpr (std::is_same_v<T, uint32_t>) {
-    return "u32";
-  } else if constexpr (std::is_same_v<T, unsigned long>) {
-    if constexpr (sizeof(T) == 4) {
-      return "u32";
-    } else if constexpr (sizeof(T) == 8) {
-      return "u64";
+  if constexpr (std::is_integral_v<T>) {
+    if constexpr (std::is_signed_v<T>) {
+      if constexpr (sizeof(T) == 1) {
+        return "i8";
+      } else if constexpr (sizeof(T) == 2) {
+        return "i16";
+      } else if constexpr (sizeof(T) == 4) {
+        return "i32";
+      } else if constexpr (sizeof(T) == 8) {
+        return "i64";
+      } else if constexpr (sizeof(T) == 16) {
+        return "i128";
+      } else {
+        static_assert(always_false<T>, "unexpected signed integral size");
+      }
     } else {
-      static_assert(always_false<T>, "unexpected size of unsigned long");
+      if constexpr (sizeof(T) == 1) {
+        return "u8";
+      } else if constexpr (sizeof(T) == 2) {
+        return "u16";
+      } else if constexpr (sizeof(T) == 4) {
+        return "u32";
+      } else if constexpr (sizeof(T) == 8) {
+        return "u64";
+      } else if constexpr (sizeof(T) == 16) {
+        return "u128";
+      } else {
+        static_assert(always_false<T>, "unexpected unsigned integral size");
+      }
     }
-  } else if constexpr (std::is_same_v<T, uint32_t>) {
-    return "u32";
-  } else if constexpr (std::is_same_v<T, int64_t>) {
-    return "i64";
-  } else if constexpr (std::is_same_v<T, int32_t>) {
-    return "i32";
-  } else if constexpr (std::is_same_v<T, float>) {
-    return "f32";
-  } else if constexpr (std::is_same_v<T, double>) {
-    return "f64";
+  } else if constexpr (std::is_floating_point_v<T>) {
+    if constexpr (sizeof(T) == 1) {
+      return "f8";
+    } else if constexpr (sizeof(T) == 2) {
+      return "f16";
+    } else if constexpr (sizeof(T) == 4) {
+      return "f32";
+    } else if constexpr (sizeof(T) == 8) {
+      return "f64";
+    } else if constexpr (sizeof(T) == 16) {
+      return "f128";
+    } else {
+      static_assert(always_false<T>, "unexpected float size");
+    }    
   }
 #if defined(KOKKOS_ENABLE_CUDA)
   else if constexpr (std::is_same_v<T, Kokkos::Cuda>) {
@@ -84,6 +107,7 @@ std::string as_string() {
   else {
     static_assert(always_false<T>, "unhandled type for as_string");
   }
+  KOKKOSKERNELS_IMPL_UNREACHABLE();
 }
 
 class WrappedBool {
