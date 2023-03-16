@@ -28,10 +28,6 @@ inline void throw_runtime_exception(const std::string &msg) {
   throw std::runtime_error(msg);
 }
 
-inline void throw_runtime_exception(const std::stringstream &msg) {
-  throw std::runtime_error(msg.str());
-}
-
 #if defined(KOKKOS_ENABLE_HIP)
 inline void hip_internal_error_throw(hipError_t e, const char *name,
                                      const char *file, const int line) {
