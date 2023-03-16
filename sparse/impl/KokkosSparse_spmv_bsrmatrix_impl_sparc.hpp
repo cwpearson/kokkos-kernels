@@ -94,9 +94,19 @@ template <typename Alpha, typename AMatrix, typename XVector, typename Beta,
           typename YVector>
 void apply_sparc(const Alpha &alpha, const AMatrix &a, const XVector &x,
                  const Beta &beta, const YVector &y) {
-  SparcKernel op(a.graph.row_map, a.graph.entries, a.values, x, y);
+
   Kokkos::RangePolicy<typename YVector::execution_space> policy(0, y.size());
-  Kokkos::parallel_for(policy, op);
+  if constexpr(YVector::rank == 1) {
+    const Kokkos::View<typename YVector::value_type*[1], typename YVector::device_type, typename YVector::memory_traits> yu(y.data(), y.extent(0), 1);
+    const Kokkos::View<typename XVector::value_type*[1], typename XVector::device_type, typename XVector::memory_traits> xu(x.data(), x.extent(0), 1);
+    SparcKernel op(a.graph.row_map, a.graph.entries, a.values, xu, yu);
+    Kokkos::parallel_for(policy, op);
+  } else {
+    SparcKernel op(a.graph.row_map, a.graph.entries, a.values, x, y);
+    Kokkos::parallel_for(policy, op);
+  }
+
+
 }
 
 }  // namespace Impl

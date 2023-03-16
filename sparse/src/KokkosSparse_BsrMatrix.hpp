@@ -34,6 +34,7 @@
 #include "Kokkos_ArithTraits.hpp"
 #include "KokkosSparse_CrsMatrix.hpp"
 #include "KokkosKernels_Error.hpp"
+#include "KokkosKernels_Unreachable.hpp"
 
 namespace KokkosSparse {
 
@@ -489,7 +490,6 @@ class BsrMatrix {
             size_type annz, ScalarType* vals, OrdinalType* rows,
             OrdinalType* cols, OrdinalType blockdim, bool pad = false) {
     (void)label;
-    (void)pad;
     blockDim_ = blockdim;
 
     if (blockDim_ < 1) {
@@ -547,6 +547,7 @@ class BsrMatrix {
     auto entries_host = Kokkos::create_mirror_view(entries_device);
     auto values_host  = Kokkos::create_mirror_view(values);
 
+    // order coordinates by row, and col within row
     auto coord_by_row_col = [](const Coord& a, const Coord& b) {
       const auto& arow = std::get<0>(a);
       const auto& brow = std::get<0>(b);
@@ -561,6 +562,7 @@ class BsrMatrix {
       }
     };
 
+    // order entries by row, and col within row
     auto entry_by_row_col = [coord_by_row_col](const Entry& a, const Entry& b) {
       return coord_by_row_col(std::get<0>(a), std::get<0>(b));
     };

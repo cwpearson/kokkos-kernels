@@ -151,9 +151,24 @@ struct SPMV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM, false,
       const KokkosKernels::Experimental::Controls &controls, const char mode[],
       const YScalar &alpha, const AMatrix &A, const XVector &X,
       const YScalar &beta, const YVector &Y) {
-    //
-    if ((mode[0] == NoTranspose[0]) || (mode[0] == Conjugate[0])) {
-      bool useConjugate = (mode[0] == Conjugate[0]);
+
+    if ((mode[0] == KokkosSparse::NoTranspose[0])) {
+      if (controls.isParameter("algorithm") &&
+          (controls.getParameter("algorithm") == "tpetra")) {
+        KokkosSparse::Impl::apply_tpetra(alpha, A, X, beta, Y);
+        return;
+      }
+      if (controls.isParameter("algorithm") &&
+          (controls.getParameter("algorithm") == "sparc")) {
+        KokkosSparse::Impl::apply_sparc(alpha, A, X, beta, Y);
+        return;
+      }
+    }
+
+
+    if ((mode[0] == KokkosSparse::NoTranspose[0]) ||
+        (mode[0] == KokkosSparse::Conjugate[0])) {
+      bool useConjugate = (mode[0] == KokkosSparse::Conjugate[0]);
       return Bsr::spMatVec_no_transpose(controls, alpha, A, X, beta, Y,
                                         useConjugate);
     } else if ((mode[0] == Transpose[0]) ||
@@ -197,7 +212,7 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
       typedef typename AMatrix::non_const_value_type AScalar;
       typedef typename XVector::non_const_value_type XScalar;
       // try to use tensor cores if requested
-      if (controls.getParameter("algorithm") == "experimental_bsr_tc")
+      if (controls.isParameter("algorithm") && controls.getParameter("algorithm") == "experimental_bsr_tc")
         method = Method::TensorCores;
       // can't use tensor cores for complex
       if (Kokkos::ArithTraits<YScalar>::is_complex) method = Method::Fallback;
@@ -297,12 +312,13 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
     if ((mode[0] == KokkosSparse::NoTranspose[0])) {
       if (controls.isParameter("algorithm") &&
           (controls.getParameter("algorithm") == "tpetra")) {
-        KokkosSparse::Impl::bcrsLocalApplyNoTrans(alpha, A.graph, A.values,
-                                                  A.blockDim(), X, beta, Y);
+            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
+        KokkosSparse::Impl::apply_tpetra(alpha, A, X, beta, Y);
         return;
       }
       if (controls.isParameter("algorithm") &&
           (controls.getParameter("algorithm") == "sparc")) {
+            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
         KokkosSparse::Impl::apply_sparc(alpha, A, X, beta, Y);
         return;
       }

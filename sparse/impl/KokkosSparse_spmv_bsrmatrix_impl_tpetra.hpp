@@ -791,6 +791,27 @@ void bcrsLocalApplyNoTrans(
   }
 }
 
+// This was not provided
+template <typename Alpha, typename AMatrix, typename XVector, typename Beta,
+          typename YVector>
+void apply_tpetra(const Alpha &alpha, const AMatrix &a, const XVector &x,
+                 const Beta &beta, const YVector &y) {
+
+  Kokkos::RangePolicy<typename YVector::execution_space> policy(0, y.size());
+  if constexpr(YVector::rank == 1) {
+    const Kokkos::View<typename YVector::value_type*[1], typename YVector::device_type, typename YVector::memory_traits> yu(y.data(), y.extent(0), 1);
+    const Kokkos::View<typename XVector::value_type*[1], typename XVector::device_type, typename XVector::memory_traits> xu(x.data(), x.extent(0), 1);
+    bcrsLocalApplyNoTrans(
+      alpha, a.graph, a.values, a.blockDim(), xu, beta, yu);
+  } else {
+    bcrsLocalApplyNoTrans(
+      alpha, a.graph, a.values, a.blockDim(), x, beta, y);
+  }
+
+
+}
+
+
 }  // namespace Impl
 }  // namespace KokkosSparse
 
