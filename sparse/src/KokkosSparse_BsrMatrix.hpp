@@ -478,9 +478,8 @@ class BsrMatrix {
   /// The \c pad argument is currently not used.
   BsrMatrix(const std::string& label, OrdinalType nrows, OrdinalType ncols,
             size_type annz, ScalarType* val, OrdinalType* rows,
-            OrdinalType* cols, OrdinalType blockdim, bool pad = false) {
+            OrdinalType* cols, OrdinalType blockdim) {
     (void)label;
-    (void)pad;
     blockDim_ = blockdim;
 
     if (blockDim_ < 1) {
