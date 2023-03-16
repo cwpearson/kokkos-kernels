@@ -69,7 +69,7 @@ void check_correctness(benchmark::State &state, const View &y_exp,
     size_t errLimit = 100;
     std::cerr << "first " << errLimit << " errors...\n";
     std::cerr << "i\tk\texp\tact" << std::endl;
-    std::cerr << "-\tk\t---\t---" << std::endl;
+    std::cerr << "-\t-\t---\t---" << std::endl;
     for (auto [i, k] : errIdx) {
       std::cerr << i << "\t" << k << "\t" << h_exp(i, k) << "\t" << h_act(i, k)
                 << std::endl;
@@ -97,7 +97,7 @@ struct SpmvTpetra {
                    const XView &x, const Beta &beta, const YView &y) {
     KokkosKernels::Experimental::Controls controls;
     controls.setParameter("algorithm", "tpetra");
-    return KokkosSparse::spmv(mode, alpha, crs, x, beta, y);
+    return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
   }
 
   static std::string name() { return "tpetra"; }
@@ -110,7 +110,7 @@ struct SpmvSparc {
                    const XView &x, const Beta &beta, const YView &y) {
     KokkosKernels::Experimental::Controls controls;
     controls.setParameter("algorithm", "sparc");
-    return KokkosSparse::spmv(mode, alpha, crs, x, beta, y);
+    return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
   }
 
   static std::string name() { return "sparc"; }
@@ -162,7 +162,7 @@ void run(benchmark::State &state, const Bsr &bsr, const size_t k) {
   scalar_type beta = 0;
 #else
   fill_random(x, random_pool, 0.0, 1.0);
-  scalar_type alpha = -1;
+  scalar_type alpha = 1; // Sparc only supports alpha=1
   scalar_type beta  = 0.273;
 #endif
 
@@ -291,6 +291,7 @@ void register_path(const fs::path &path) {
   } catch (const std::exception &e) {
     std::cerr << "ERROR while reading: " << e.what() << "\n"
               << "skipping!\n";
+    return;
   }
 
   /* If a block size can be detected, just use that block size without
