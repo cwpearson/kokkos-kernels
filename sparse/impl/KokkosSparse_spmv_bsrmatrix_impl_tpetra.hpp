@@ -295,20 +295,18 @@ struct FILL<ViewType, InputType, IndexType, true, rank> {
   }
 };
 
-} // namespace TpetraImpl
+}  // namespace TpetraImpl
 
 /// \brief Set every entry of x to val.
-template<class ViewType,
-         class InputType,
-         class IndexType = int,
-         const int rank = ViewType::rank>
-KOKKOS_INLINE_FUNCTION void
-FILL (const ViewType& x, const InputType& val)
-{
+template <class ViewType, class InputType, class IndexType = int,
+          const int rank = ViewType::rank>
+KOKKOS_INLINE_FUNCTION void FILL(const ViewType& x, const InputType& val) {
   using LayoutType = typename ViewType::array_layout;
-  constexpr bool is_contiguous = (std::is_same<LayoutType,Kokkos::LayoutLeft>::value ||
-                                  std::is_same<LayoutType,Kokkos::LayoutRight>::value);
-  TpetraImpl::FILL<ViewType, InputType, IndexType, is_contiguous, rank>::run (x, val);
+  constexpr bool is_contiguous =
+      (std::is_same<LayoutType, Kokkos::LayoutLeft>::value ||
+       std::is_same<LayoutType, Kokkos::LayoutRight>::value);
+  TpetraImpl::FILL<ViewType, InputType, IndexType, is_contiguous, rank>::run(
+      x, val);
 }
 
 template <typename T>
@@ -625,7 +623,8 @@ class BcrsApplyNoTransFunctor<AlphaCoeffType, GraphType, MatrixValuesType,
       // Precompute to save integer math in the inner loop.
       const offset_type bs2 = blockSize_ * blockSize_;
       little_block_type A_cur(val_.data(), blockSize_, blockSize_);
-      auto X_cur = subview(X_, ::Kokkos::make_pair(local_ordinal_type(0), blockSize_));
+      auto X_cur =
+          subview(X_, ::Kokkos::make_pair(local_ordinal_type(0), blockSize_));
       Kokkos::parallel_for(
           Kokkos::TeamThreadRange(member, blkBeg, blkEnd),
           [&](const local_ordinal_type& absBlkOff) {
@@ -636,7 +635,8 @@ class BcrsApplyNoTransFunctor<AlphaCoeffType, GraphType, MatrixValuesType,
             //   &
             //   X_(X_ptBeg)
             // );
-            X_cur = subview(X_, ::Kokkos::make_pair(X_ptBeg, X_ptBeg + blockSize_));
+            X_cur =
+                subview(X_, ::Kokkos::make_pair(X_ptBeg, X_ptBeg + blockSize_));
 
             Kokkos::parallel_for(
                 Kokkos::ThreadVectorRange(member, blockSize_),

@@ -22,7 +22,8 @@
 namespace KokkosKernelsBenchmark {
 
 // for use in static asserts
-template <typename...> inline constexpr bool always_false = false;
+template <typename...>
+inline constexpr bool always_false = false;
 
 template <typename T>
 std::string as_string() {
@@ -31,12 +32,12 @@ std::string as_string() {
   // uint32_t = unsigned
   // so we have to have an unsigned long test
 
-  if constexpr (false) { // formatting consistency
-  } else if constexpr(std::is_same_v<T, uint64_t>) {
+  if constexpr (false) {  // formatting consistency
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
     return "u64";
-  } else if constexpr(std::is_same_v<T, uint32_t>) {
+  } else if constexpr (std::is_same_v<T, uint32_t>) {
     return "u32";
-  } else if constexpr(std::is_same_v<T, unsigned long>) {
+  } else if constexpr (std::is_same_v<T, unsigned long>) {
     if constexpr (sizeof(T) == 4) {
       return "u32";
     } else if constexpr (sizeof(T) == 8) {
@@ -44,39 +45,39 @@ std::string as_string() {
     } else {
       static_assert(always_false<T>, "unexpected size of unsigned long");
     }
-  } else if constexpr(std::is_same_v<T, uint32_t>) {
+  } else if constexpr (std::is_same_v<T, uint32_t>) {
     return "u32";
-  } else if constexpr(std::is_same_v<T, int64_t>) {
+  } else if constexpr (std::is_same_v<T, int64_t>) {
     return "i64";
-  } else if constexpr(std::is_same_v<T, int32_t>) {
+  } else if constexpr (std::is_same_v<T, int32_t>) {
     return "i32";
-  } else if constexpr(std::is_same_v<T, float>) {
+  } else if constexpr (std::is_same_v<T, float>) {
     return "f32";
-  } else if constexpr(std::is_same_v<T, double>) {
+  } else if constexpr (std::is_same_v<T, double>) {
     return "f64";
-  } 
+  }
 #if defined(KOKKOS_ENABLE_CUDA)
-  else if constexpr(std::is_same_v<T, Kokkos::Cuda>) {
+  else if constexpr (std::is_same_v<T, Kokkos::Cuda>) {
     return "CUDA";
   }
 #endif
 #if defined(KOKKOS_ENABLE_OPENMP)
-  else if constexpr(std::is_same_v<T, Kokkos::OpenMP>) {
+  else if constexpr (std::is_same_v<T, Kokkos::OpenMP>) {
     return "OpenMP";
   }
 #endif
 #if defined(KOKKOS_ENABLE_SERIAL)
-  else if constexpr(std::is_same_v<T, Kokkos::Serial>) {
+  else if constexpr (std::is_same_v<T, Kokkos::Serial>) {
     return "Serial";
   }
 #endif
 #if defined(KOKKOS_ENABLE_SYCL)
-  else if constexpr(std::is_same_v<T, Kokkos::SYCL>) {
+  else if constexpr (std::is_same_v<T, Kokkos::SYCL>) {
     return "SYCL";
   }
 #endif
 #if defined(KOKKOS_ENABLE_HIP)
-  else if constexpr(std::is_same_v<T, Kokkos::HIP>) {
+  else if constexpr (std::is_same_v<T, Kokkos::HIP>) {
     return "HIP";
   }
 #endif

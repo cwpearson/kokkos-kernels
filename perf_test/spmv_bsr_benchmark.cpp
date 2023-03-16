@@ -239,12 +239,11 @@ void register_expands(const fs::path &path) {
   std::vector<size_t> ks = {1, 3};
   for (size_t bs : {3, 7}) {  // block sizes
     for (size_t k : ks) {     // multivector sizes
-      std::string name = std::string("MatrixMarketExpanded") + "/" +
-                         std::string(path.stem()) + "/" +
-                         as_string<Scalar>() + "/" + as_string<Ordinal>() +
-                         "/" + as_string<Offset>() + "/" +
-                         std::to_string(bs) + "/" + std::to_string(k) + "/" +
-                         Spmv::name() + "/" + as_string<Device>();
+      std::string name =
+          std::string("MatrixMarketExpanded") + "/" + std::string(path.stem()) +
+          "/" + as_string<Scalar>() + "/" + as_string<Ordinal>() + "/" +
+          as_string<Offset>() + "/" + std::to_string(bs) + "/" +
+          std::to_string(k) + "/" + Spmv::name() + "/" + as_string<Device>();
       benchmark::RegisterBenchmark(name.c_str(), read_expand_run<Bsr, Spmv>,
                                    path, bs, k)
           ->UseRealTime();
@@ -260,11 +259,11 @@ void register_converts(const fs::path &path, size_t bs) {
   std::vector<size_t> ks = {1, 3};
 
   for (size_t k : ks) {  // multivector sizes
-    std::string name =
-        std::string("MatrixMarketConvert") + "/" + std::string(path.stem()) +
-        "/" + as_string<Scalar>() + "/" + as_string<Ordinal>() + "/" +
-        as_string<Offset>() + "/" + std::to_string(bs) + "/" +
-        std::to_string(k) + "/" + Spmv::name() + "/" + as_string<Device>();
+    std::string name = std::string("MatrixMarketConvert") + "/" +
+                       std::string(path.stem()) + "/" + as_string<Scalar>() +
+                       "/" + as_string<Ordinal>() + "/" + as_string<Offset>() +
+                       "/" + std::to_string(bs) + "/" + std::to_string(k) +
+                       "/" + Spmv::name() + "/" + as_string<Device>();
     benchmark::RegisterBenchmark(name.c_str(), read_convert_run<Bsr, Spmv>,
                                  path, bs, k)
         ->UseRealTime();
@@ -273,14 +272,13 @@ void register_converts(const fs::path &path, size_t bs) {
 
 template <typename Device>
 void register_path(const fs::path &path) {
-
-
-  using ReadScalar = double;
+  using ReadScalar  = double;
   using ReadOrdinal = int64_t;
-  using ReadOffset = uint64_t;
-  using Bsr = KokkosSparse::Experimental::BsrMatrix<ReadScalar, ReadOrdinal, Device,
-                                                    void, ReadOffset>;
-  using Crs = KokkosSparse::CrsMatrix<ReadScalar, ReadOrdinal, Device, void, ReadOffset>;
+  using ReadOffset  = uint64_t;
+  using Bsr = KokkosSparse::Experimental::BsrMatrix<ReadScalar, ReadOrdinal,
+                                                    Device, void, ReadOffset>;
+  using Crs = KokkosSparse::CrsMatrix<ReadScalar, ReadOrdinal, Device, void,
+                                      ReadOffset>;
 
   size_t detectedSize;
   try {
@@ -290,7 +288,7 @@ void register_path(const fs::path &path) {
     std::cerr << "detect block sizes...\n";
     detectedSize = KokkosSparse::Impl::detect_block_size(crs);
     std::cerr << "detected block size = " << detectedSize << "\n";
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << "ERROR while reading: " << e.what() << "\n"
               << "skipping!\n";
   }
@@ -301,12 +299,18 @@ void register_path(const fs::path &path) {
   */
   if (detectedSize != 1) {
     std::cerr << "benchmarks will use detected blocksize\n";
-    register_converts<int, float, unsigned, Device, SpmvDefault>(path, detectedSize);
-    register_converts<int, float, unsigned, Device, SpmvTpetra>(path, detectedSize);
-    register_converts<int, float, unsigned, Device, SpmvSparc>(path, detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvDefault>(path, detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvTpetra>(path, detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvSparc>(path, detectedSize);
+    register_converts<int, float, unsigned, Device, SpmvDefault>(path,
+                                                                 detectedSize);
+    register_converts<int, float, unsigned, Device, SpmvTpetra>(path,
+                                                                detectedSize);
+    register_converts<int, float, unsigned, Device, SpmvSparc>(path,
+                                                               detectedSize);
+    register_converts<int64_t, double, uint64_t, Device, SpmvDefault>(
+        path, detectedSize);
+    register_converts<int64_t, double, uint64_t, Device, SpmvTpetra>(
+        path, detectedSize);
+    register_converts<int64_t, double, uint64_t, Device, SpmvSparc>(
+        path, detectedSize);
   } else {
     std::cerr << "benchmarks will expand each non-zero into a larger block\n";
     register_expands<int, float, unsigned, Device, SpmvDefault>(path);
