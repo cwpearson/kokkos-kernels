@@ -105,9 +105,135 @@ void apply_sparc(const Alpha &alpha, const AMatrix &a, const XVector &x,
     SparcKernel op(a.graph.row_map, a.graph.entries, a.values, x, y);
     Kokkos::parallel_for(policy, op);
   }
-
-
 }
+
+template <
+typename Alpha,
+typename AMatrix,
+typename XVector,
+typename Beta,
+typename YVector>
+class ModifiedSparc {
+
+  using LO = typename AMatrix::non_const_ordinal_type;
+
+  Alpha alpha_;
+  AMatrix a_;
+  XVector x_;
+  Beta beta_;
+  YVector y_;
+
+ public:
+  ModifiedSparc(const Alpha &alpha, const AMatrix &a, const XVector &x, const Beta &beta, const YVector &y)
+      : alpha_(alpha),
+        a_(a),
+        x_(x),
+        beta_(beta),
+        y_(y) {}
+
+  template <unsigned BLOCK_SIZE = 0>
+  KOKKOS_INLINE_FUNCTION void impl(const size_t k) const {
+
+    using a_value_type = typename AMatrix::non_const_value_type;
+    using Accum = typename YVector::non_const_value_type;
+    using BlockLayout = Kokkos::LayoutRight;
+    using ConstBlock = Kokkos::View<const Accum **, BlockLayout,
+                           Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+    const LO irhs     = k / y_.extent(0);
+    const LO row      = k % y_.extent(0);
+
+    // scale by beta
+    if (0 == beta_) {
+      y_(row, irhs) = 0; // convert NaN to 0
+    } else if (1 != beta_) {
+      y_(row, irhs) *= beta_;
+    }
+
+    // for non-zero template instantiations,
+    // constant propagation should optimize divmod
+    LO blocksz;
+    if constexpr(0 == BLOCK_SIZE) {
+      blocksz = a_.blockDim();
+    } else {
+      blocksz = BLOCK_SIZE;
+    }
+
+    if (0 != alpha_) {
+      const LO bsz2 = blocksz * blocksz;
+      const LO blockRow = row / blocksz;
+      const LO lclrow   = row % blocksz;
+      Accum accum       = 0;
+      const LO j_begin = a_.graph.row_map(blockRow);
+      const LO j_end   = a_.graph.row_map(blockRow + 1);
+      for (LO j = j_begin; j < j_end; ++j) {
+        ConstBlock b(&a_.values(bsz2 * j), blocksz, blocksz);
+        const LO blockcol = a_.graph.entries(j);
+        const LO x_start  = blockcol * blocksz;
+        const auto x_lcl  = Kokkos::subview(
+            x_, Kokkos::make_pair(x_start, x_start + blocksz), irhs);
+        for (LO i = 0; i < blocksz; ++i) accum += b(lclrow, i) * x_lcl(i);
+      }
+      y_(row, irhs) = alpha_ * accum;
+    }
+  }
+
+  KOKKOS_INLINE_FUNCTION void operator()(const size_t k) const {
+
+    if (false) {} 
+    else if (1 == a_.blockDim()) { impl<1>(k); }
+    else if (2 == a_.blockDim()) { impl<2>(k); }
+    else if (3 == a_.blockDim()) { impl<3>(k); }
+    else if (4 == a_.blockDim()) { impl<4>(k); }
+    else if (5 == a_.blockDim()) { impl<5>(k); }
+    else if (6 == a_.blockDim()) { impl<6>(k); }
+    else if (7 == a_.blockDim()) { impl<7>(k); }
+    else {impl<0>(k);}
+  }
+
+
+};
+
+template <typename Alpha, typename AMatrix, typename XVector, typename Beta,
+          typename YVector>
+void apply_modified_sparc(const Alpha &alpha, const AMatrix &a, const XVector &x,
+                 const Beta &beta, const YVector &y) {
+
+  // kokkos/core/src/impl/KokkosExp_IterateTileGPU.hpp
+  // left-iteration seems to go through the left index before
+  // incrementing the right index
+  // inner iteration doesn't matter because the tile size is 1
+  // using Rank = Kokkos::Rank<2, Kokkos::Iterate::Left, Kokkos::Iterate::Default>;
+  using execution_space = typename YVector::execution_space;
+
+
+  Kokkos::RangePolicy<execution_space> policy(0, y.size());
+  if constexpr(YVector::rank == 1) {
+    const Kokkos::View<typename YVector::value_type*[1], typename YVector::device_type, typename YVector::memory_traits> yu(y.data(), y.extent(0), 1);
+    const Kokkos::View<typename XVector::value_type*[1], typename XVector::device_type, typename XVector::memory_traits> xu(x.data(), x.extent(0), 1);
+    
+    // tile-size 1 matches the 1-D RangePolicy
+    // Kokkos::MDRangePolicy<execution_space, Rank> policy(
+    //   {size_t(0),size_t(0)},
+    //   {yu.extent(0), yu.extent(1)},
+    //   {1,1});
+    
+    ModifiedSparc op(alpha, a, xu, beta, yu);
+    Kokkos::parallel_for(policy, op);
+  } else {
+
+    // Kokkos::MDRangePolicy<execution_space, Rank> policy(
+    //   {size_t(0),size_t(0)},
+    //   {y.extent(0), y.extent(1)},
+    //   {1,1});
+
+    ModifiedSparc op(alpha, a, x, beta, y);
+    Kokkos::parallel_for(policy, op);
+  }
+}
+
+
+
 
 }  // namespace Impl
 }  // namespace KokkosSparse
