@@ -340,12 +340,12 @@ void register_path(const fs::path &path) {
         path, detectedSize);
   } else {
     std::cerr << "benchmarks will expand each non-zero into a larger block\n";
-    // register_expands<int, float, unsigned, Device, SpmvDefault>(path);
-    // register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
+    register_expands<int, float, unsigned, Device, SpmvDefault>(path);
+    register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
     register_expands<int, float, unsigned, Device, SpmvApp>(path);
     register_expands<int, float, unsigned, Device, SpmvModifiedApp>(path);
-    // register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
-    // register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
     register_expands<int64_t, double, uint64_t, Device, SpmvApp>(path);
     register_expands<int64_t, double, uint64_t, Device, SpmvModifiedApp>(path);
   }
@@ -361,9 +361,11 @@ int main(int argc, char **argv) {
 #if defined(KOKKOS_ENABLE_CUDA)
     register_path<Kokkos::Cuda>(argv[i]);
 #endif
+#if defined(KOKKOS_ENABLE_HIP)
+    register_path<Kokkos::HIP>(argv[i]);
+#endif
 #if defined(KOKKOS_ENABLE_SERIAL)
     register_path<Kokkos::Serial>(argv[i]);
-
 #endif
   }
 
