@@ -108,11 +108,13 @@ void apply_sparc(const Alpha &alpha, const AMatrix &a, const XVector &x,
 }
 
 template <
+unsigned BLOCK_SIZE,
 typename Alpha,
 typename AMatrix,
 typename XVector,
 typename Beta,
-typename YVector>
+typename YVector
+>
 class ModifiedSparc {
 
   using LO = typename AMatrix::non_const_ordinal_type;
@@ -131,17 +133,28 @@ class ModifiedSparc {
         beta_(beta),
         y_(y) {}
 
-  template <unsigned BLOCK_SIZE = 0>
-  KOKKOS_INLINE_FUNCTION void impl(const size_t k) const {
+  KOKKOS_INLINE_FUNCTION void operator()(const size_t k) const {
 
     using a_value_type = typename AMatrix::non_const_value_type;
     using Accum = typename YVector::non_const_value_type;
     using BlockLayout = Kokkos::LayoutRight;
-    using ConstBlock = Kokkos::View<const Accum **, BlockLayout,
+    using ConstBlock = Kokkos::View<const a_value_type **, BlockLayout,
                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
-    const LO irhs     = k / y_.extent(0);
-    const LO row      = k % y_.extent(0);
+    LO row, irhs;
+    if constexpr (std::is_same_v<typename XVector::array_layout, Kokkos::LayoutLeft>) {
+      // LayoutLeft, adjacent ks access rows,
+      // since rows of a vector are contiugous in memory
+      row      = k % y_.extent(0);
+      irhs     = k / y_.extent(0);
+    } else {
+      // LayoutRight, adjacent ks access adjacent vectors,
+      // since vector entries are contiguous in memory
+      row      = k / y_.extent(0);
+      irhs     = k % y_.extent(0);
+    }
+
+
 
     // scale by beta
     if (0 == beta_) {
@@ -178,62 +191,61 @@ class ModifiedSparc {
     }
   }
 
-  KOKKOS_INLINE_FUNCTION void operator()(const size_t k) const {
 
-    if (false) {} 
-    else if (1 == a_.blockDim()) { impl<1>(k); }
-    else if (2 == a_.blockDim()) { impl<2>(k); }
-    else if (3 == a_.blockDim()) { impl<3>(k); }
-    else if (4 == a_.blockDim()) { impl<4>(k); }
-    else if (5 == a_.blockDim()) { impl<5>(k); }
-    else if (6 == a_.blockDim()) { impl<6>(k); }
-    else if (7 == a_.blockDim()) { impl<7>(k); }
-    else {impl<0>(k);}
-  }
 
 
 };
 
 template <typename Alpha, typename AMatrix, typename XVector, typename Beta,
           typename YVector>
-void apply_modified_sparc(const Alpha &alpha, const AMatrix &a, const XVector &x,
-                 const Beta &beta, const YVector &y) {
-
-  // kokkos/core/src/impl/KokkosExp_IterateTileGPU.hpp
-  // left-iteration seems to go through the left index before
-  // incrementing the right index
-  // inner iteration doesn't matter because the tile size is 1
-  // using Rank = Kokkos::Rank<2, Kokkos::Iterate::Left, Kokkos::Iterate::Default>;
+struct ModifiedSparcDispatch {
   using execution_space = typename YVector::execution_space;
+  template <unsigned BLOCK_SIZE>
+  using Op = ModifiedSparc<BLOCK_SIZE, Alpha, AMatrix, XVector, Beta, YVector>;
+
+  ModifiedSparcDispatch(const Alpha &alpha, const AMatrix &a, const XVector &x,
+                  const Beta &beta, const YVector &y) {
+
+    Kokkos::RangePolicy<execution_space> policy(0, y.size());
 
 
-  Kokkos::RangePolicy<execution_space> policy(0, y.size());
-  if constexpr(YVector::rank == 1) {
-    const Kokkos::View<typename YVector::value_type*[1], typename YVector::device_type, typename YVector::memory_traits> yu(y.data(), y.extent(0), 1);
-    const Kokkos::View<typename XVector::value_type*[1], typename XVector::device_type, typename XVector::memory_traits> xu(x.data(), x.extent(0), 1);
-    
+    // kokkos/core/src/impl/KokkosExp_IterateTileGPU.hpp
+    // left-iteration seems to go through the left index before
+    // incrementing the right index
+    // inner iteration doesn't matter because the tile size is 1
     // tile-size 1 matches the 1-D RangePolicy
-    // Kokkos::MDRangePolicy<execution_space, Rank> policy(
-    //   {size_t(0),size_t(0)},
-    //   {yu.extent(0), yu.extent(1)},
-    //   {1,1});
-    
-    ModifiedSparc op(alpha, a, xu, beta, yu);
-    Kokkos::parallel_for(policy, op);
-  } else {
-
+    // using Rank = Kokkos::Rank<2, Kokkos::Iterate::Left, Kokkos::Iterate::Default>;
     // Kokkos::MDRangePolicy<execution_space, Rank> policy(
     //   {size_t(0),size_t(0)},
     //   {y.extent(0), y.extent(1)},
-    //   {1,1});
+    //   {256,1});
 
-    ModifiedSparc op(alpha, a, x, beta, y);
-    Kokkos::parallel_for(policy, op);
+
+    // Specialize a few block sizes that our users have special concern for
+    if (false) {}
+    // else if (a.blockDim() == 1) {Op<1> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+    // else if (a.blockDim() == 2) {Op<2> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+    // else if (a.blockDim() == 3) {Op<3> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+    // else if (a.blockDim() == 4) {Op<4> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+    // else if (a.blockDim() == 5) {Op<5> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+    // else if (a.blockDim() == 6) {Op<6> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+    // else if (a.blockDim() == 7) {Op<7> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+    else {Op<0> op(alpha, a, x, beta, y); Kokkos::parallel_for(policy, op);}
+  }
+};
+
+template <typename Alpha, typename AMatrix, typename XVector, typename Beta,
+          typename YVector>
+void apply_modified_sparc(const Alpha &alpha, const AMatrix &a, const XVector &x,
+                 const Beta &beta, const YVector &y) {
+  if constexpr(YVector::rank == 1) {
+    const Kokkos::View<typename YVector::value_type*[1], typename YVector::device_type, typename YVector::memory_traits> yu(y.data(), y.extent(0), 1);
+    const Kokkos::View<typename XVector::value_type*[1], typename XVector::device_type, typename XVector::memory_traits> xu(x.data(), x.extent(0), 1);
+    ModifiedSparcDispatch(alpha, a, xu, beta, yu);
+  } else {
+    ModifiedSparcDispatch(alpha, a, x, beta, y);
   }
 }
-
-
-
 
 }  // namespace Impl
 }  // namespace KokkosSparse

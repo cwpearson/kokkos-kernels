@@ -56,6 +56,7 @@ inline void add_kokkos_configuration(bool verbose) {
   // Iterate over lines returned from kokkos and extract key:value pairs
   std::stringstream ss{msg.str()};
   for (std::string line; std::getline(ss, line, '\n');) {
+    std::cerr << __FILE__ << ":" << __LINE__ << " " << line << "\n";
     auto found = line.find_first_of(':');
     if (found != std::string::npos) {
       auto val = remove_unwanted_characters(line.substr(found + 1));

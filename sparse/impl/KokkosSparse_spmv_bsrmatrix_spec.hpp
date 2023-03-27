@@ -317,19 +317,16 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
     if ((mode[0] == KokkosSparse::NoTranspose[0])) {
       if (controls.isParameter("algorithm") &&
           (controls.getParameter("algorithm") == "tpetra")) {
-            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
         KokkosSparse::Impl::apply_tpetra(alpha, A, X, beta, Y);
         return;
       }
       if (controls.isParameter("algorithm") &&
           (controls.getParameter("algorithm") == "sparc")) {
-            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
         KokkosSparse::Impl::apply_sparc(alpha, A, X, beta, Y);
         return;
       }
       if (controls.isParameter("algorithm") &&
           (controls.getParameter("algorithm") == "modified_sparc")) {
-            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
         KokkosSparse::Impl::apply_modified_sparc(alpha, A, X, beta, Y);
         return;
       }

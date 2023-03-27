@@ -332,20 +332,24 @@ void register_path(const fs::path &path) {
                                                                 detectedSize);
     register_converts<int, float, unsigned, Device, SpmvSparc>(path,
                                                                detectedSize);
+    register_converts<int, float, unsigned, Device, SpmvModifiedSparc>(path,
+                                                               detectedSize);
     register_converts<int64_t, double, uint64_t, Device, SpmvDefault>(
         path, detectedSize);
     register_converts<int64_t, double, uint64_t, Device, SpmvTpetra>(
         path, detectedSize);
     register_converts<int64_t, double, uint64_t, Device, SpmvSparc>(
         path, detectedSize);
+    register_converts<int64_t, double, uint64_t, Device, SpmvModifiedSparc>(
+        path, detectedSize);
   } else {
     std::cerr << "benchmarks will expand each non-zero into a larger block\n";
-    // register_expands<int, float, unsigned, Device, SpmvDefault>(path);
-    // register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
+    register_expands<int, float, unsigned, Device, SpmvDefault>(path);
+    register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
     register_expands<int, float, unsigned, Device, SpmvSparc>(path);
     register_expands<int, float, unsigned, Device, SpmvModifiedSparc>(path);
-    // register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
-    // register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
+    register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
     register_expands<int64_t, double, uint64_t, Device, SpmvSparc>(path);
     register_expands<int64_t, double, uint64_t, Device, SpmvModifiedSparc>(path);
   }
