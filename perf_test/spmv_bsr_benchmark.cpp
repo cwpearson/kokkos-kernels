@@ -259,7 +259,7 @@ void read_convert_run(benchmark::State &state, const fs::path &path,
 
 template <typename Ordinal, typename Scalar, typename Offset, typename Device,
           typename Spmv>
-void register_expands(const fs::path &path) {
+void register_expand_type(const fs::path &path) {
   using Bsr = KokkosSparse::Experimental::BsrMatrix<Scalar, Ordinal, Device,
                                                     void, Offset>;
   std::vector<size_t> ks = {1, 3};
@@ -279,7 +279,7 @@ void register_expands(const fs::path &path) {
 
 template <typename Ordinal, typename Scalar, typename Offset, typename Device,
           typename Spmv>
-void register_converts(const fs::path &path, size_t bs) {
+void register_convert_type(const fs::path &path, size_t bs) {
   using Bsr = KokkosSparse::Experimental::BsrMatrix<Scalar, Ordinal, Device,
                                                     void, Offset>;
   std::vector<size_t> ks = {1, 3};
@@ -294,6 +294,39 @@ void register_converts(const fs::path &path, size_t bs) {
                                  path, bs, k)
         ->UseRealTime();
   }
+}
+
+template <typename Device>
+void register_converts(const fs::path &path, const size_t bs) {
+    std::cerr << "benchmarks will use detected blocksize\n";
+    register_convert_type<int, float, unsigned, Device, SpmvDefault>(path,
+                                                                 bs);
+    register_convert_type<int, float, unsigned, Device, SpmvTpetra>(path,
+                                                                bs);
+    register_convert_type<int, float, unsigned, Device, SpmvApp>(path,
+                                                               bs);
+    register_convert_type<int, float, unsigned, Device, SpmvModifiedApp>(path,
+                                                               bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvDefault>(path,
+                                                                 bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvTpetra>(path,
+                                                                bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvApp>(path,
+                                                               bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvModifiedApp>(path,
+                                                               bs);
+}
+
+template <typename Device>
+void register_expands(const fs::path &path) {
+    register_expand_type<int, float, unsigned, Device, SpmvDefault>(path);
+    register_expand_type<int, float, unsigned, Device, SpmvTpetra>(path);
+    register_expand_type<int, float, unsigned, Device, SpmvApp>(path);
+    register_expand_type<int, float, unsigned, Device, SpmvModifiedApp>(path);
+    register_expand_type<int64_t, double, uint64_t, Device, SpmvDefault>(path);
+    register_expand_type<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
+    register_expand_type<int64_t, double, uint64_t, Device, SpmvApp>(path);
+    register_expand_type<int64_t, double, uint64_t, Device, SpmvModifiedApp>(path);
 }
 
 template <typename Device>
@@ -325,29 +358,27 @@ void register_path(const fs::path &path) {
      Otherwise, expand the matrix to some arbitrary block sizes to test BSR
   */
   if (detectedSize != 1) {
-    std::cerr << "benchmarks will use detected blocksize\n";
-    register_converts<int, float, unsigned, Device, SpmvDefault>(path,
-                                                                 detectedSize);
-    register_converts<int, float, unsigned, Device, SpmvTpetra>(path,
-                                                                detectedSize);
-    register_converts<int, float, unsigned, Device, SpmvApp>(path,
-                                                               detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvDefault>(
-        path, detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvTpetra>(
-        path, detectedSize);
-    register_converts<int64_t, double, uint64_t, Device, SpmvApp>(
-        path, detectedSize);
+    std::cerr << "benchmarks will use detected size\n";
+#if defined(KOKKOS_ENABLE_CUDA)
+    register_converts<Kokkos::Cuda>(path, detectedSize);
+#endif
+#if defined(KOKKOS_ENABLE_HIP)
+    register_converts<Kokkos::HIP>(path, detectedSize);
+#endif
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_converts<Kokkos::Serial>(path, detectedSize);
+#endif
   } else {
     std::cerr << "benchmarks will expand each non-zero into a larger block\n";
-    register_expands<int, float, unsigned, Device, SpmvDefault>(path);
-    register_expands<int, float, unsigned, Device, SpmvTpetra>(path);
-    register_expands<int, float, unsigned, Device, SpmvApp>(path);
-    register_expands<int, float, unsigned, Device, SpmvModifiedApp>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvDefault>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvApp>(path);
-    register_expands<int64_t, double, uint64_t, Device, SpmvModifiedApp>(path);
+#if defined(KOKKOS_ENABLE_CUDA)
+    register_expands<Kokkos::Cuda>(path);
+#endif
+#if defined(KOKKOS_ENABLE_HIP)
+    register_expands<Kokkos::HIP>(path);
+#endif
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_expands<Kokkos::Serial>(path);
+#endif
   }
 }
 
