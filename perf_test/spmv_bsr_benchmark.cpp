@@ -26,6 +26,23 @@ namespace fs = std::filesystem;
 
 using namespace KokkosKernelsBenchmark;
 
+template <typename Crs>
+Crs &cached_read(const fs::path &path) {
+
+  static Crs _crs;
+  static fs::path _path;
+
+  if (_path != path) {
+    _crs = KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
+    _path = path;
+    return _crs;
+  }  else {
+    std::cerr << __FILE__ << ":" << __LINE__ << " return cached " << path << "\n";
+    return _crs;
+  }
+}
+
+
 template <typename View, typename Matrix, typename Alpha, typename Beta>
 void check_correctness(benchmark::State &state, const View &y_exp,
                        const View &y_act, const Matrix &crs, const Alpha &alpha,
@@ -222,8 +239,7 @@ void read_expand_run(benchmark::State &state, const fs::path &path,
   // read Crs into host memory
   using Crs = KokkosSparse::CrsMatrix<scalar_type, ordinal_type, Kokkos::HostSpace>;
 
-  const Crs crs =
-      KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
+  const Crs crs = cached_read<Crs>(path);
   Bsr bsr;
   try {
     bsr = KokkosSparse::Impl::expand_crs_to_bsr<Bsr>(crs, blockSize);
@@ -244,8 +260,7 @@ void read_convert_run(benchmark::State &state, const fs::path &path,
 
   using Crs = KokkosSparse::CrsMatrix<scalar_type, ordinal_type, Kokkos::HostSpace>;
 
-  const Crs crs =
-      KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
+  const Crs crs = cached_read<Crs>(path);
   Bsr bsr;
   try {
     bsr = KokkosSparse::Impl::blocked_crs_to_bsr<Bsr>(crs, blockSize);
@@ -342,8 +357,7 @@ void register_path(const fs::path &path) {
   size_t detectedSize;
   try {
     std::cerr << "read " << path << "...\n";
-    const Crs crs =
-        KokkosSparse::Impl::read_kokkos_crst_matrix<Crs>(path.c_str());
+    const Crs crs = cached_read<Crs>(path);
     std::cerr << "detect block sizes...\n";
     detectedSize = KokkosSparse::Impl::detect_block_size(crs);
     std::cerr << "detected block size = " << detectedSize << "\n";
