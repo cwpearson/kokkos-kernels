@@ -37,7 +37,6 @@ Crs &cached_read(const fs::path &path) {
     _path = path;
     return _crs;
   }  else {
-    std::cerr << __FILE__ << ":" << __LINE__ << " return cached " << path << "\n";
     return _crs;
   }
 }
