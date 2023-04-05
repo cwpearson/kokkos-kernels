@@ -156,6 +156,19 @@ struct SpmvDefault {
   static std::string name() { return "default"; }
 };
 
+struct SpmvNative {
+  template <typename Alpha, typename Matrix, typename XView, typename Beta,
+            typename YView>
+  static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
+                   const XView &x, const Beta &beta, const YView &y) {
+    KokkosKernels::Experimental::Controls controls;
+    controls.setParameter("algorithm", "native");
+    return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
+  }
+
+  static std::string name() { return "native"; }
+};
+
 template <typename Spmv, typename Bsr>
 void run(benchmark::State &state, const Bsr &bsr, const size_t k) {
   using execution_space = typename Bsr::execution_space;
@@ -315,6 +328,8 @@ void register_converts(const fs::path &path, const size_t bs) {
     std::cerr << "benchmarks will use detected blocksize\n";
     register_convert_type<int, float, unsigned, Device, SpmvDefault>(path,
                                                                  bs);
+    register_convert_type<int, float, unsigned, Device, SpmvNative>(path,
+                                                                 bs);                                            
     register_convert_type<int, float, unsigned, Device, SpmvTpetra>(path,
                                                                 bs);
     register_convert_type<int, float, unsigned, Device, SpmvApp>(path,
@@ -334,6 +349,7 @@ void register_converts(const fs::path &path, const size_t bs) {
 template <typename Device>
 void register_expands(const fs::path &path) {
     register_expand_type<int, float, unsigned, Device, SpmvDefault>(path);
+    register_expand_type<int, float, unsigned, Device, SpmvNative>(path);
     register_expand_type<int, float, unsigned, Device, SpmvTpetra>(path);
     register_expand_type<int, float, unsigned, Device, SpmvApp>(path);
     register_expand_type<int, float, unsigned, Device, SpmvModifiedApp>(path);
@@ -348,8 +364,6 @@ void register_path(const fs::path &path) {
   using ReadScalar  = double;
   using ReadOrdinal = int64_t;
   using ReadOffset  = uint64_t;
-  using Bsr = KokkosSparse::Experimental::BsrMatrix<ReadScalar, ReadOrdinal,
-                                                    Device, void, ReadOffset>;
   using Crs = KokkosSparse::CrsMatrix<ReadScalar, ReadOrdinal, Device, void,
                                       ReadOffset>;
 
@@ -372,26 +386,10 @@ void register_path(const fs::path &path) {
   */
   if (detectedSize != 1) {
     std::cerr << "benchmarks will use detected size\n";
-#if defined(KOKKOS_ENABLE_CUDA)
-    register_converts<Kokkos::Cuda>(path, detectedSize);
-#endif
-#if defined(KOKKOS_ENABLE_HIP)
-    register_converts<Kokkos::HIP>(path, detectedSize);
-#endif
-#if defined(KOKKOS_ENABLE_SERIAL)
-    register_converts<Kokkos::Serial>(path, detectedSize);
-#endif
+    register_converts<Device>(path, detectedSize);
   } else {
     std::cerr << "benchmarks will expand each non-zero into a larger block\n";
-#if defined(KOKKOS_ENABLE_CUDA)
-    register_expands<Kokkos::Cuda>(path);
-#endif
-#if defined(KOKKOS_ENABLE_HIP)
-    register_expands<Kokkos::HIP>(path);
-#endif
-#if defined(KOKKOS_ENABLE_SERIAL)
-    register_expands<Kokkos::Serial>(path);
-#endif
+    register_expands<Device>(path);
   }
 }
 
