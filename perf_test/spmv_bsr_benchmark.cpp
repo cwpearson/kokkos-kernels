@@ -326,24 +326,28 @@ void register_convert_type(const fs::path &path, size_t bs) {
 template <typename Device>
 void register_converts(const fs::path &path, const size_t bs) {
     std::cerr << "benchmarks will use detected blocksize\n";
-    register_convert_type<int, float, unsigned, Device, SpmvDefault>(path,
-                                                                 bs);
-    register_convert_type<int, float, unsigned, Device, SpmvNative>(path,
-                                                                 bs);                                            
-    register_convert_type<int, float, unsigned, Device, SpmvTpetra>(path,
-                                                                bs);
-    register_convert_type<int, float, unsigned, Device, SpmvApp>(path,
-                                                               bs);
-    register_convert_type<int, float, unsigned, Device, SpmvModifiedApp>(path,
-                                                               bs);
-    register_convert_type<int64_t, double, size_t, Device, SpmvDefault>(path,
-                                                                 bs);
-    register_convert_type<int64_t, double, size_t, Device, SpmvTpetra>(path,
-                                                                bs);
-    register_convert_type<int64_t, double, size_t, Device, SpmvApp>(path,
-                                                               bs);
-    register_convert_type<int64_t, double, size_t, Device, SpmvModifiedApp>(path,
-                                                               bs);
+    // clang-format off
+    register_convert_type<int, float, unsigned, Device, SpmvDefault>(path, bs);
+    register_convert_type<int, float, unsigned, Device, SpmvNative>(path, bs);                                            
+    register_convert_type<int, float, unsigned, Device, SpmvTpetra>(path, bs);
+    register_convert_type<int, float, unsigned, Device, SpmvApp>(path, bs);
+    register_convert_type<int, float, unsigned, Device, SpmvModifiedApp>(path, bs);
+    register_convert_type<int, float, int, Device, SpmvDefault>(path, bs);
+    register_convert_type<int, float, int, Device, SpmvNative>(path, bs);                                            
+    register_convert_type<int, float, int, Device, SpmvTpetra>(path, bs);
+    register_convert_type<int, float, int, Device, SpmvApp>(path, bs);
+    register_convert_type<int, float, int, Device, SpmvModifiedApp>(path, bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvDefault>(path, bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvNative>(path, bs);      
+    register_convert_type<int64_t, double, size_t, Device, SpmvTpetra>(path, bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvApp>(path, bs);
+    register_convert_type<int64_t, double, size_t, Device, SpmvModifiedApp>(path, bs);
+    register_convert_type<int64_t, double, int64_t, Device, SpmvDefault>(path, bs);
+    register_convert_type<int64_t, double, int64_t, Device, SpmvNative>(path, bs);      
+    register_convert_type<int64_t, double, int64_t, Device, SpmvTpetra>(path, bs);
+    register_convert_type<int64_t, double, int64_t, Device, SpmvApp>(path, bs);
+    register_convert_type<int64_t, double, int64_t, Device, SpmvModifiedApp>(path, bs);
+    // clang-format on
 }
 
 template <typename Device>
@@ -353,10 +357,21 @@ void register_expands(const fs::path &path) {
     register_expand_type<int, float, unsigned, Device, SpmvTpetra>(path);
     register_expand_type<int, float, unsigned, Device, SpmvApp>(path);
     register_expand_type<int, float, unsigned, Device, SpmvModifiedApp>(path);
+    register_expand_type<int, float, int, Device, SpmvDefault>(path);
+    register_expand_type<int, float, int, Device, SpmvNative>(path);
+    register_expand_type<int, float, int, Device, SpmvTpetra>(path);
+    register_expand_type<int, float, int, Device, SpmvApp>(path);
+    register_expand_type<int, float, int, Device, SpmvModifiedApp>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvDefault>(path);
+    register_expand_type<int64_t, double, uint64_t, Device, SpmvNative>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvApp>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvModifiedApp>(path);
+    register_expand_type<int64_t, double, int64_t, Device, SpmvDefault>(path);
+    register_expand_type<int64_t, double, int64_t, Device, SpmvNative>(path);
+    register_expand_type<int64_t, double, int64_t, Device, SpmvTpetra>(path);
+    register_expand_type<int64_t, double, int64_t, Device, SpmvApp>(path);
+    register_expand_type<int64_t, double, int64_t, Device, SpmvModifiedApp>(path);
 }
 
 template <typename Device>
