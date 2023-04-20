@@ -13,20 +13,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //@HEADER
-#ifndef TEST_COMMON_HPP
-#define TEST_COMMON_HPP
 
-#include <Test_Common_ArithTraits.hpp>
-// #include<Test_Common_float128.hpp>
-#include <Test_Common_set_bit_count.hpp>
-#include <Test_Common_Sorting.hpp>
-#include <Test_Common_IOUtils.hpp>
-#include <Test_Common_Error.hpp>
-#include <Test_Common_Version.hpp>
-#include <Test_Common_Pack.hpp>
-#include <Test_Common_PrintConfiguration.hpp>
-#include <Test_Common_Iota.hpp>
-#include <Test_Common_LowerBound.hpp>
-#include <Test_Common_UpperBound.hpp>
+/// \file Test_Common_Pack.hpp
 
-#endif  // TEST_COMMON_HPP
+#pragma once
+
+#include <KokkosKernels_Pack.hpp>
+
+namespace Test_Pack {
+
+template <typename ExecSpace>
+void testPack() {
+
+    Kokkos::View<const int *[2], ExecSpace> a;
+    Kokkos::View<double *, ExecSpace> b;
+    auto result = KokkosKernels::Experimental::pack(ExecSpace(), a,b);
+}
+
+TEST_F(TestCategory, common_pack) {
+  Test_Pack::testPack<TestExecSpace>();
+}
+
+}
