@@ -26,8 +26,10 @@ namespace fs = std::filesystem;
 
 using namespace KokkosKernelsBenchmark;
 
+
+
 template <typename Crs>
-Crs &cached_read(const fs::path &path) {
+Crs cached_read(const fs::path &path) {
 
   static Crs _crs;
   static fs::path _path;
@@ -169,6 +171,17 @@ struct SpmvNative {
   static std::string name() { return "native"; }
 };
 
+struct SpmvSerial {
+  template <typename Alpha, typename Matrix, typename XView, typename Beta,
+            typename YView>
+  static void spmv(const char *mode, const Alpha &alpha, const Matrix &bsr,
+                   const XView &x, const Beta &beta, const YView &y) {
+    return KokkosSparse::Impl::apply_serial(alpha, bsr, x, beta, y);
+  }
+
+  static std::string name() { return "serial"; }
+};
+
 template <typename Spmv, typename Bsr>
 void run(benchmark::State &state, const Bsr &bsr, const size_t k) {
   using execution_space = typename Bsr::execution_space;
@@ -290,7 +303,7 @@ void register_expand_type(const fs::path &path) {
   using Bsr = KokkosSparse::Experimental::BsrMatrix<Scalar, Ordinal, Device,
                                                     void, Offset>;
   std::vector<size_t> ks = {1, 3};
-  for (size_t bs : {3, 7}) {  // block sizes
+  for (size_t bs : {4}) {  // block sizes
     for (size_t k : ks) {     // multivector sizes
       std::string name =
           std::string("MatrixMarketExpanded") + "/" + std::string(path.stem()) +
@@ -332,21 +345,33 @@ void register_converts(const fs::path &path, const size_t bs) {
     register_convert_type<int, float, unsigned, Device, SpmvTpetra>(path, bs);
     register_convert_type<int, float, unsigned, Device, SpmvApp>(path, bs);
     register_convert_type<int, float, unsigned, Device, SpmvModifiedApp>(path, bs);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_convert_type<int, float, unsigned, Device, SpmvSerial>(path, bs);
+#endif
     register_convert_type<int, float, int, Device, SpmvDefault>(path, bs);
     register_convert_type<int, float, int, Device, SpmvNative>(path, bs);                                            
     register_convert_type<int, float, int, Device, SpmvTpetra>(path, bs);
     register_convert_type<int, float, int, Device, SpmvApp>(path, bs);
     register_convert_type<int, float, int, Device, SpmvModifiedApp>(path, bs);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_convert_type<int, float, int, Device, SpmvSerial>(path, bs);
+#endif
     register_convert_type<int64_t, double, size_t, Device, SpmvDefault>(path, bs);
     register_convert_type<int64_t, double, size_t, Device, SpmvNative>(path, bs);      
     register_convert_type<int64_t, double, size_t, Device, SpmvTpetra>(path, bs);
     register_convert_type<int64_t, double, size_t, Device, SpmvApp>(path, bs);
     register_convert_type<int64_t, double, size_t, Device, SpmvModifiedApp>(path, bs);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_convert_type<int64_t, double, size_t, Device, SpmvSerial>(path, bs);
+#endif
     register_convert_type<int64_t, double, int64_t, Device, SpmvDefault>(path, bs);
     register_convert_type<int64_t, double, int64_t, Device, SpmvNative>(path, bs);      
     register_convert_type<int64_t, double, int64_t, Device, SpmvTpetra>(path, bs);
     register_convert_type<int64_t, double, int64_t, Device, SpmvApp>(path, bs);
     register_convert_type<int64_t, double, int64_t, Device, SpmvModifiedApp>(path, bs);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_convert_type<int64_t, double, int64_t, Device, SpmvSerial>(path, bs);
+#endif
     // clang-format on
 }
 
@@ -357,21 +382,33 @@ void register_expands(const fs::path &path) {
     register_expand_type<int, float, unsigned, Device, SpmvTpetra>(path);
     register_expand_type<int, float, unsigned, Device, SpmvApp>(path);
     register_expand_type<int, float, unsigned, Device, SpmvModifiedApp>(path);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_expand_type<int, float, unsigned, Device, SpmvSerial>(path);
+#endif
     register_expand_type<int, float, int, Device, SpmvDefault>(path);
     register_expand_type<int, float, int, Device, SpmvNative>(path);
     register_expand_type<int, float, int, Device, SpmvTpetra>(path);
     register_expand_type<int, float, int, Device, SpmvApp>(path);
     register_expand_type<int, float, int, Device, SpmvModifiedApp>(path);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_expand_type<int, float, int, Device, SpmvSerial>(path);
+#endif
     register_expand_type<int64_t, double, uint64_t, Device, SpmvDefault>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvNative>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvTpetra>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvApp>(path);
     register_expand_type<int64_t, double, uint64_t, Device, SpmvModifiedApp>(path);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_expand_type<int64_t, double, uint64_t, Device, SpmvSerial>(path);
+#endif
     register_expand_type<int64_t, double, int64_t, Device, SpmvDefault>(path);
     register_expand_type<int64_t, double, int64_t, Device, SpmvNative>(path);
     register_expand_type<int64_t, double, int64_t, Device, SpmvTpetra>(path);
     register_expand_type<int64_t, double, int64_t, Device, SpmvApp>(path);
     register_expand_type<int64_t, double, int64_t, Device, SpmvModifiedApp>(path);
+#if defined(KOKKOS_ENABLE_SERIAL)
+    register_expand_type<int64_t, double, int64_t, Device, SpmvSerial>(path);
+#endif
 }
 
 template <typename Device>

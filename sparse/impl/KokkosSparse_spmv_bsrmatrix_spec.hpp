@@ -26,11 +26,8 @@
 #if !defined(KOKKOSKERNELS_ETI_ONLY) || KOKKOSKERNELS_IMPL_COMPILE_LIBRARY
 #include <KokkosSparse_spmv_bsrmatrix_impl.hpp>
 #include "KokkosSparse_spmv_bsrmatrix_impl_tpetra.hpp"
-<<<<<<< HEAD
-#include "KokkosSparse_spmv_bsrmatrix_impl_sparc.hpp"
-=======
 #include "KokkosSparse_spmv_bsrmatrix_impl_app.hpp"
->>>>>>> 3afb3771c (Tpetra kernel, App kernel, Modified App kernel with alpha/beta support)
+#include "KokkosSparse_spmv_bsrmatrix_impl_serial.hpp"
 #endif
 
 namespace KokkosSparse {
