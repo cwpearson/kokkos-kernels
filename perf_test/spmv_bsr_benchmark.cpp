@@ -303,7 +303,7 @@ void register_expand_type(const fs::path &path) {
   using Bsr = KokkosSparse::Experimental::BsrMatrix<Scalar, Ordinal, Device,
                                                     void, Offset>;
   std::vector<size_t> ks = {1, 3};
-  for (size_t bs : {4}) {  // block sizes
+  for (size_t bs : {4, 7}) {  // block sizes
     for (size_t k : ks) {     // multivector sizes
       std::string name =
           std::string("MatrixMarketExpanded") + "/" + std::string(path.stem()) +

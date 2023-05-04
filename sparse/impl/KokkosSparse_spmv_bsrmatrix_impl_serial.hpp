@@ -33,35 +33,12 @@ namespace Impl {
 
 template <unsigned M, unsigned N, typename Alpha, typename AS, typename XS, typename YS>
 void gemv_tile(
-  const Alpha &alpha,
+  const Alpha alpha,
   const AS * KOKKOS_RESTRICT a,
   const XS * KOKKOS_RESTRICT x,
   YS * KOKKOS_RESTRICT y,
-  size_t blockSize
+  const size_t aExtent0
   ) {
-#if 0
-
-  YS y0, y1;
-  XS x0, x1;
-
-  // load y registers
-  y0 = y[0];
-  y1 = y[1];
-
-  // load x into registers
-  x0 = x[0];
-  x1 = x[1];
-
-  y0 += a[0 * blockSize + 0] * x0;
-  y0 += a[0 * blockSize + 1] * x1;
-  y1 += a[1 * blockSize + 0] * x0;
-  y1 += a[1 * blockSize + 1] * x1;
-
-  // write registers back to memory
-  y[0] = y0 * alpha;
-  y[1] = y1 * alpha;
-
-#else
   YS acc[M] = {0};
   XS xl[N];
 
@@ -75,7 +52,7 @@ void gemv_tile(
   for (size_t i = 0; i < M; ++i) {
     # pragma unroll
     for (size_t j = 0; j < N; ++j) {
-      acc[i] += a[i * blockSize + j] * xl[j];
+      acc[i] += a[i * aExtent0 + j] * xl[j];
     }
   }
 
@@ -84,21 +61,53 @@ void gemv_tile(
   for (unsigned i = 0; i < M; ++i) {
     y[i] += alpha * acc[i];
   }
-#endif
+}
+
+template <unsigned M, typename Alpha, typename AS, typename XS, typename YS>
+void gemv_rows(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t rowLen
+  ) {
+
+  size_t j = 0;
+  for (; j + 8 <= rowLen; j += 8) {
+    gemv_tile<M, 8>(alpha, &a[j], &x[j], y, rowLen);
+  }
+  for (; j + 4 <= rowLen; j += 4) {
+    gemv_tile<M, 4>(alpha, &a[j], &x[j], y, rowLen);
+  }
+
+  // TODO: something wrong with this
+  // for (size_t i = 0; i < M; ++i) {
+  //   auto acc = 0;
+  //   for (size_t jj = j; jj < rowLen; ++jj) {
+  //     acc += a[i * rowLen + jj] * x[jj];
+  //   }
+  //   y[i] += alpha * acc;
+  // }
+
+  for (; j + 2 <= rowLen; j += 2) {
+    gemv_tile<M, 2>(alpha, &a[j], &x[j], y, rowLen);
+  }
+  for (; j + 1 <= rowLen; j += 1) {
+    gemv_tile<M, 1>(alpha, &a[j], &x[j], y, rowLen);
+  }
 }
 
 template <typename Alpha, typename AS, typename XS, typename YS>
 void gemv(
-  const Alpha &alpha,
+  const Alpha alpha,
   const AS * KOKKOS_RESTRICT a,
   const XS * KOKKOS_RESTRICT x,
   YS * KOKKOS_RESTRICT y,
   const size_t blockSize
   ) {
 
-#if 1
-  constexpr unsigned M = 4;
-  constexpr unsigned N = 4;
+#if 0
+
 
   size_t i = 0;
   for (; i < blockSize; i += M) {
@@ -109,6 +118,22 @@ void gemv(
     for (; j < blockSize; j += 1) {
         gemv_tile<M,1>(alpha, &a[i * blockSize + j], &x[j], &y[i], blockSize);
     }
+  }
+#elif 1
+  size_t i = 0;
+  for (; i + 8 <= blockSize; i += 8) {
+    gemv_rows<8>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+  }
+  for (; i + 4 <= blockSize; i += 4) {
+    gemv_rows<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+  }
+  for (; i < blockSize; ++i) {
+    // std::cerr << __FILE__ << ":" << __LINE__ << " i=" << i << "\n";
+    auto acc = y[i];
+    for (size_t j = 0; j < blockSize; ++j) {
+      acc += alpha * a[i * blockSize + j] * x[j];
+    }
+    y[i] = acc;
   }
 #else
   for (size_t i = 0; i < blockSize; ++i) {
@@ -128,7 +153,7 @@ void bsr_spmv(const Alpha &alpha,
 const AS * KOKKOS_RESTRICT aVals, 
 const AR * KOKKOS_RESTRICT aRows, 
 const AC *KOKKOS_RESTRICT aCols, 
-const XS * KOKKOS_RESTRICT x, const Beta &beta, YS * KOKKOS_RESTRICT y,
+const XS * KOKKOS_RESTRICT x, const Beta beta, YS * KOKKOS_RESTRICT y,
 const size_t numRows, const size_t blockSize) {
 
   // scale y
