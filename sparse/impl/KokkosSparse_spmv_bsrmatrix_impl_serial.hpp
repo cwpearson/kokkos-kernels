@@ -49,9 +49,9 @@ void gemv_tile(
   }
 
   #pragma unroll
-  for (size_t i = 0; i < M; ++i) {
+  for (unsigned i = 0; i < M; ++i) {
     # pragma unroll
-    for (size_t j = 0; j < N; ++j) {
+    for (unsigned j = 0; j < N; ++j) {
       acc[i] += a[i * aExtent0 + j] * xl[j];
     }
   }
@@ -73,32 +73,80 @@ void gemv_rows(
   ) {
 
   size_t j = 0;
-  for (; j + 8 <= rowLen; j += 8) {
-    gemv_tile<M, 8>(alpha, &a[j], &x[j], y, rowLen);
+  for (; j + 7 <= rowLen; j += 7) {
+    gemv_tile<M, 7>(alpha, &a[j], &x[j], y, rowLen);
   }
   for (; j + 4 <= rowLen; j += 4) {
     gemv_tile<M, 4>(alpha, &a[j], &x[j], y, rowLen);
   }
 
-  // TODO: something wrong with this
-  // for (size_t i = 0; i < M; ++i) {
-  //   auto acc = 0;
-  //   for (size_t jj = j; jj < rowLen; ++jj) {
-  //     acc += a[i * rowLen + jj] * x[jj];
-  //   }
-  //   y[i] += alpha * acc;
-  // }
+  #pragma unroll
+  for (size_t i = 0; i < M; ++i) {
+    YS acc = 0;
+    for (size_t jj = j; jj < rowLen; ++jj) {
+      acc += a[i * rowLen + jj] * x[jj];
+    }
+    y[i] += alpha * acc;
+  }
 
-  for (; j + 2 <= rowLen; j += 2) {
-    gemv_tile<M, 2>(alpha, &a[j], &x[j], y, rowLen);
-  }
-  for (; j + 1 <= rowLen; j += 1) {
-    gemv_tile<M, 1>(alpha, &a[j], &x[j], y, rowLen);
-  }
+  // for (; j + 2 <= rowLen; j += 2) {
+  //   gemv_tile<M, 2>(alpha, &a[j], &x[j], y, rowLen);
+  // }
+  // for (; j + 1 <= rowLen; j += 1) {
+  //   gemv_tile<M, 1>(alpha, &a[j], &x[j], y, rowLen);
+  // }
 }
 
 template <typename Alpha, typename AS, typename XS, typename YS>
-void gemv(
+void gemv_mn_tiled(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t blockSize
+  ) {
+
+#if 0
+
+
+  size_t i = 0;
+  for (; i < blockSize; i += M) {
+    size_t j = 0;
+    for (; j + N <= blockSize; j += N) {
+        gemv_tile<M,N>(alpha, &a[i * blockSize + j], &x[j], &y[i], blockSize);
+    }
+    for (; j < blockSize; j += 1) {
+        gemv_tile<M,1>(alpha, &a[i * blockSize + j], &x[j], &y[i], blockSize);
+    }
+  }
+#elif 1
+  size_t i = 0;
+  for (; i + 7 <= blockSize; i += 7) {
+    gemv_rows<7>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+  }
+  for (; i + 4 <= blockSize; i += 4) {
+    gemv_rows<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+  }
+  for (; i < blockSize; ++i) {
+    auto acc = y[i];
+    for (size_t j = 0; j < blockSize; ++j) {
+      acc += alpha * a[i * blockSize + j] * x[j];
+    }
+    y[i] = acc;
+  }
+#else
+  for (size_t i = 0; i < blockSize; ++i) {
+    auto acc = y[i];
+    for (size_t j = 0; j < blockSize; ++j) {
+      acc += alpha * a[i * blockSize + j] * x[j];
+    }
+    y[i] = acc;
+  }
+#endif
+}
+
+template <typename Alpha, typename AS, typename XS, typename YS>
+void gemv_mn_blocked(
   const Alpha alpha,
   const AS * KOKKOS_RESTRICT a,
   const XS * KOKKOS_RESTRICT x,
@@ -147,6 +195,122 @@ void gemv(
 }
 
 
+/*! produce a single entry of Y by dotting a row of A with X
+
+*/
+template <typename Alpha, typename AS, typename XS, typename YS>
+void gemv_n_blocked(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t blockSize
+  ) {
+
+    for (size_t i = 0; i < blockSize; ++i) {
+      YS acc = 0;
+      #pragma unroll(4)
+      for (size_t j = 0; j < blockSize; ++j) {
+        acc += a[i * blockSize + j] * x[j];
+      }
+      y[i] += alpha * acc;
+    }
+}
+
+/*! dot MB rows of `a` with `x`, producing MB products
+   `a` is LayoutRight
+*/
+template <unsigned MB, typename Alpha, typename AS, typename XS, typename YS>
+void multidot_layoutright(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t n
+  ) {
+    YS yv[MB] = {0};
+    for (size_t j = 0; j < n; ++j) {
+      const auto xj = x[j];
+      #pragma unroll(MB)
+      for (unsigned m = 0; m < MB; ++m) {
+        yv[m] += a[m * n + j] * xj;
+      }
+    }
+    #pragma unroll(MB)
+    for (unsigned m = 0; m < MB; ++m) {
+      y[m] += alpha * yv[m];
+    }
+}
+
+/*! compute multiple entries of Y at the same time
+*/
+template <typename Alpha, typename AS, typename XS, typename YS>
+void gemv_m_blocked(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t blockSize
+  ) {
+
+    size_t i = 0;
+    for (; i + 8 <= blockSize; i += 8) {
+      multidot_layoutright<8>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 7 <= blockSize; i += 7) {
+      multidot_layoutright<7>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 4 <= blockSize; i += 4) {
+      multidot_layoutright<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 2 <= blockSize; i += 2) {
+      multidot_layoutright<2>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 1 <= blockSize; i += 1) {
+      multidot_layoutright<1>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+}
+
+/*! produce a single entry of Y by dotting a row of A with X
+
+*/
+template <typename Alpha, typename AS, typename XS, typename YS>
+void gemv_n_blocked_2(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t blockSize
+  ) {
+
+
+    constexpr size_t NB = 8;
+
+    for (size_t i = 0; i < blockSize; ++i) {
+      size_t j = 0;
+
+      // vector-size chunks
+      YS yv[NB] = {0};
+      YS acc = 0;
+      for (; j + NB <= blockSize; j += NB) {
+        auto aij = &a[i * blockSize + j];
+        auto xj = &x[j];
+        #pragma clang loop vectorize_width(NB) interleave_count(NB)
+        for (size_t jj = 0; jj < NB; ++jj) {
+          yv[jj] += aij[jj] * xj[jj];
+        }
+      }
+      #pragma unroll(NB)
+      for (size_t jj = 0; jj < NB; ++jj) {
+        acc += yv[jj];
+      }   
+      for (; j < blockSize; ++j) {
+        acc += a[i * blockSize + j] * x[j];
+      }
+   
+      y[i] += alpha * acc;
+    }
+}
 
 template <typename Alpha, typename AS, typename AR, typename AC, typename XS, typename Beta, typename YS>
 void bsr_spmv(const Alpha &alpha, 
@@ -169,16 +333,28 @@ const size_t numRows, const size_t blockSize) {
       const size_t j = aCols[ji];
 
       // std::cerr << __FILE__ << ":" << __LINE__ << " " << i << "," << j << "\n";
-
-      gemv(alpha,
+#if 0
+      gemv_mn_blocked(alpha,
            &aVals[ji * blockSize * blockSize], 
            &x[j * blockSize],
            &y[i * blockSize],
            blockSize);
+#elif 0
 
+      gemv_n_blocked_2(alpha,
+           &aVals[ji * blockSize * blockSize], 
+           &x[j * blockSize],
+           &y[i * blockSize],
+           blockSize);
+#else 
+      gemv_m_blocked(alpha,
+           &aVals[ji * blockSize * blockSize], 
+           &x[j * blockSize],
+           &y[i * blockSize],
+           blockSize);
+#endif
     }
   }
-
 }
 
 // This was not provided
@@ -205,6 +381,7 @@ void apply_serial(const Alpha &alpha, const AMatrix &a, const XVector &x,
 
 
   } else {
+
 
     // get a single vector
     auto y1 = Kokkos::subview(y, Kokkos::ALL, 0);
