@@ -27,6 +27,7 @@
 
 #include <Kokkos_Core.hpp>
 
+#include "KokkosKernels_ViewUtils.hpp"
 
 namespace KokkosSparse {
 namespace Impl {
@@ -217,57 +218,130 @@ void gemv_n_blocked(
     }
 }
 
-/*! dot MB rows of `a` with `x`, producing MB products
-   `a` is LayoutRight
+/*! dot MB rows of `a` with `x`, writing MB products into Y
+
+  If the strides can be known to be 1 at compile-time, performance can really be improved. Force inline to try to propagate as much stride info as possible.
 */
-template <unsigned MB, typename Alpha, typename AS, typename XS, typename YS>
-void multidot_layoutright(
+template <
+unsigned MB, 
+typename Alpha, typename AScalar, typename XSCalar, typename YScalar
+>
+KOKKOS_FORCEINLINE_FUNCTION
+void multidot_unsafe(
   const Alpha alpha,
-  const AS * KOKKOS_RESTRICT a,
-  const XS * KOKKOS_RESTRICT x,
-  YS * KOKKOS_RESTRICT y,
-  const size_t n
+  const AScalar * KOKKOS_RESTRICT a,
+  size_t aStride0, // stride between entries in dim 0 of a
+  size_t aStride1, // stride between entires in dim 1 of a
+  const XSCalar * KOKKOS_RESTRICT x,
+  size_t xStride, // stride between entries of x
+  YScalar * KOKKOS_RESTRICT y, // at least MB long
+  size_t yStride, // stride between entries of y
+  const size_t n // length of rows of a (and x)
   ) {
-    YS yv[MB] = {0};
+    YScalar yv[MB] = {0};
     for (size_t j = 0; j < n; ++j) {
-      const auto xj = x[j];
+      const auto xj = x[j * xStride];
       #pragma unroll(MB)
       for (unsigned m = 0; m < MB; ++m) {
-        yv[m] += a[m * n + j] * xj;
+        yv[m] += a[m * aStride0 + j * aStride1] * xj;
       }
     }
     #pragma unroll(MB)
     for (unsigned m = 0; m < MB; ++m) {
-      y[m] += alpha * yv[m];
+      y[m * yStride] += alpha * yv[m];
     }
+}
+
+/*! dot MB rows of `a` with `x`, producing MB products
+   y[0:MB] += A[0:MB , :] * x
+*/
+template <unsigned MB, typename Alpha, typename AMatrix, typename XVector, typename YVector>
+void multidot(
+  const Alpha alpha,
+  const AMatrix &a,
+  const XVector &x,
+  const YVector &y
+  ) {
+
+    static_assert(AMatrix::rank == 2, "");
+    static_assert(XVector::rank == 1, "");
+    static_assert(YVector::rank == 1, "");
+
+    // multidot_unsafe<MB>(
+    //   alpha,
+    //   a.data(), a.stride_0(), a.stride_1(),
+    //   x.data(), x.stride_0(),
+    //   y.data(), y.stride_0(),
+    //   x.extent(0)
+    // );
+
+    // for many calls to this function, we will know these
+    // strides statically, which helps inline them into the
+    // multidot_unsafe call
+    unsigned xStride = 
+      std::is_same_v<typename XVector::array_layout, Kokkos::LayoutStride> ? x.stride_0() : 1;
+
+    unsigned yStride =
+      std::is_same_v<typename YVector::array_layout, Kokkos::LayoutStride> ? y.stride_0() : 1;
+
+    unsigned aStride0 = 
+      std::is_same_v<typename AMatrix::array_layout, Kokkos::LayoutLeft> ? 1 : a.stride_0();
+
+    unsigned aStride1 = 
+      std::is_same_v<typename AMatrix::array_layout, Kokkos::LayoutRight> ? 1 : a.stride_1();
+
+    // std::cerr << xStride << " " << yStride << " " << aStride0 << " " << aStride1 << "\n";
+
+    multidot_unsafe<MB>(
+      alpha,
+      a.data(), aStride0, aStride1,
+      x.data(), xStride,
+      y.data(), yStride,
+      x.extent(0)
+    );
+
 }
 
 /*! compute multiple entries of Y at the same time
 */
-template <typename Alpha, typename AS, typename XS, typename YS>
+template <typename Alpha, typename AMatrix, typename XVector, typename YVector>
 void gemv_m_blocked(
   const Alpha alpha,
-  const AS * KOKKOS_RESTRICT a,
-  const XS * KOKKOS_RESTRICT x,
-  YS * KOKKOS_RESTRICT y,
-  const size_t blockSize
+  const AMatrix &a,
+  const XVector &x,
+  const YVector &y
   ) {
-
+    const size_t numRows = y.extent(0);
     size_t i = 0;
-    for (; i + 8 <= blockSize; i += 8) {
-      multidot_layoutright<8>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    for (; i + 8 <= numRows; i += 8) {
+      const Kokkos::pair rows{size_t(i), size_t(i+8)};
+      auto as = Kokkos::subview(a, rows, Kokkos::ALL);
+      auto ys = Kokkos::subview(y, rows);
+      multidot<8>(alpha, as, x, ys);
     }
-    for (; i + 7 <= blockSize; i += 7) {
-      multidot_layoutright<7>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    for (; i + 7 <= numRows; i += 7) {
+      const Kokkos::pair rows{size_t(i), size_t(i+7)};
+      auto as = Kokkos::subview(a, rows, Kokkos::ALL);
+      auto ys = Kokkos::subview(y, rows);
+      multidot<7>(alpha, as, x, ys);
     }
-    for (; i + 4 <= blockSize; i += 4) {
-      multidot_layoutright<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    for (; i + 4 <= numRows; i += 4) {
+      const Kokkos::pair rows{size_t(i), size_t(i+4)};
+      auto as = Kokkos::subview(a, rows, Kokkos::ALL);
+      auto ys = Kokkos::subview(y, rows);
+      multidot<4>(alpha, as, x, ys);
     }
-    for (; i + 2 <= blockSize; i += 2) {
-      multidot_layoutright<2>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    for (; i + 2 <= numRows; i += 2) {
+      const Kokkos::pair rows{size_t(i), size_t(i+2)};
+      auto as = Kokkos::subview(a, rows, Kokkos::ALL);
+      auto ys = Kokkos::subview(y, rows);
+      multidot<2>(alpha, as, x, ys);
     }
-    for (; i + 1 <= blockSize; i += 1) {
-      multidot_layoutright<1>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    for (; i + 1 <= numRows; i += 1) {
+      const Kokkos::pair rows{size_t(i), size_t(i+1)};
+      auto as = Kokkos::subview(a, rows, Kokkos::ALL);
+      auto ys = Kokkos::subview(y, rows);
+      multidot<1>(alpha, as, x, ys);
     }
 }
 
@@ -312,27 +386,36 @@ void gemv_n_blocked_2(
     }
 }
 
-template <typename Alpha, typename AS, typename AR, typename AC, typename XS, typename Beta, typename YS>
+template <typename Alpha, typename AMatrix, typename XVector, typename Beta, typename YVector>
 void bsr_spmv(const Alpha &alpha, 
-const AS * KOKKOS_RESTRICT aVals, 
-const AR * KOKKOS_RESTRICT aRows, 
-const AC *KOKKOS_RESTRICT aCols, 
-const XS * KOKKOS_RESTRICT x, const Beta beta, YS * KOKKOS_RESTRICT y,
-const size_t numRows, const size_t blockSize) {
+const AMatrix &a, 
+const XVector &x, const Beta beta, const YVector &y) {
+  using a_ordinal_type = typename AMatrix::non_const_ordinal_type;
+  static_assert(XVector::rank == 1, "");
+  static_assert(YVector::rank == 1, "");
+
+
+  const auto * KOKKOS_RESTRICT aRows = a.graph.row_map.data();
+  const auto * KOKKOS_RESTRICT aCols = a.graph.entries.data();
+  const a_ordinal_type blockSize = a.blockDim();
+  const a_ordinal_type numRows = a.numRows();
+
+  // cheaper subviews
+  auto ux = KokkosKernels::Impl::make_unmanaged(x);
+  auto uy = KokkosKernels::Impl::make_unmanaged(y);
 
   // scale y
   for (size_t i = 0; i < numRows * blockSize; ++i) {
-    y[i] = beta * y[i];
+    uy[i] = beta * uy[i];
   }
 
-  for (size_t i = 0; i < numRows; ++i) {
+  for (a_ordinal_type i = 0; i < numRows; ++i) {
     const size_t rowBegin = aRows[i];
     const size_t rowEnd = aRows[i+1];
 
     for (size_t ji = rowBegin; ji < rowEnd; ++ji) {
-      const size_t j = aCols[ji];
+      const a_ordinal_type j = aCols[ji];
 
-      // std::cerr << __FILE__ << ":" << __LINE__ << " " << i << "," << j << "\n";
 #if 0
       gemv_mn_blocked(alpha,
            &aVals[ji * blockSize * blockSize], 
@@ -347,11 +430,16 @@ const size_t numRows, const size_t blockSize) {
            &y[i * blockSize],
            blockSize);
 #else 
+      const Kokkos::pair blockCols{size_t(j*blockSize), size_t((j+1)*blockSize)};
+      const Kokkos::pair blockRows{size_t(i*blockSize), size_t((i+1)*blockSize)};
+      auto xs = Kokkos::subview(ux, blockCols);
+      auto ys = Kokkos::subview(uy, blockRows);
+      // std::cerr << __FILE__ << ":" << __LINE__ 
+      //           << " gemv on block" << i << "," << j << " (" << ji << ")\n";
       gemv_m_blocked(alpha,
-           &aVals[ji * blockSize * blockSize], 
-           &x[j * blockSize],
-           &y[i * blockSize],
-           blockSize);
+           a.unmanaged_block(ji),
+           xs,
+           ys);
 #endif
     }
   }
@@ -366,27 +454,16 @@ void apply_serial(const Alpha &alpha, const AMatrix &a, const XVector &x,
   using x_value_type = typename XVector::non_const_value_type;
   using y_value_type = typename YVector::non_const_value_type;
 
-
   Kokkos::RangePolicy<typename YVector::execution_space> policy(0, y.size());
-  if constexpr(YVector::rank == 1) {
-
-    const auto * KOKKOS_RESTRICT aVals = a.values.data();
-    const auto * KOKKOS_RESTRICT aRows = a.graph.row_map.data();
-    const auto * KOKKOS_RESTRICT aCols = a.graph.entries.data();
-    const auto * KOKKOS_RESTRICT xp = x.data();
-    y_value_type * KOKKOS_RESTRICT yp = y.data();
-
-
-    bsr_spmv(alpha, aVals, aRows, aCols, xp, beta, yp, a.numRows(), a.blockDim());
-
-
+  if constexpr(YVector::rank == 1 && XVector::rank == 1) {
+    bsr_spmv(alpha, a, x, beta, y);
   } else {
-
-
-    // get a single vector
-    auto y1 = Kokkos::subview(y, Kokkos::ALL, 0);
-    return apply_serial(alpha, a, x, beta, y1);
-
+    // apply to each vector in turn (just to check correctness)
+    for (size_t k = 0; k < y.extent(1); ++k) {
+      auto ys = Kokkos::subview(y, Kokkos::ALL, k);
+      auto xs = Kokkos::subview(x, Kokkos::ALL, k);
+      apply_serial(alpha, a, xs, beta, ys);
+    }
   }
 } // apply_serial
 

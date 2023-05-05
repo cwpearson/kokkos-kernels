@@ -998,6 +998,12 @@ class BsrMatrix {
     }
   }
 
+  KOKKOS_INLINE_FUNCTION
+  Kokkos::View<value_type **, device_type, Kokkos::MemoryUnmanaged>
+  unmanaged_block(const size_type i) const {
+    return Kokkos::View<value_type **, device_type, Kokkos::MemoryUnmanaged>(&values(i * blockDim_ * blockDim_), blockDim_, blockDim_);
+  }
+
  protected:
   enum class valueOperation { ADD, ASSIGN };
 

@@ -189,7 +189,10 @@ void run(benchmark::State &state, const Bsr &bsr, const size_t k) {
   using scalar_type     = typename Bsr::non_const_value_type;
   using ordinal_type    = typename Bsr::non_const_ordinal_type;
   using size_type       = typename Bsr::non_const_size_type;
-  using view_t          = Kokkos::View<scalar_type **, memory_space>;
+
+  // multivector should be layoutleft for CPU, makes
+  // slices of a single vector contiguous
+  using view_t          = Kokkos::View<scalar_type **, Kokkos::LayoutLeft, memory_space>;
 
   state.counters["nnz"]        = bsr.nnz();
   state.counters["num_rows"]   = bsr.numRows() * bsr.blockDim();
