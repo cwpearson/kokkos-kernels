@@ -218,37 +218,88 @@ void gemv_n_blocked(
     }
 }
 
+/*! dot MB rows of `a` with `x`, producing MB products
+   `a` is LayoutRight
+*/
+template <unsigned MB, typename Alpha, typename AS, typename XS, typename YS>
+void multidot_unsafe_nostride(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t n
+  ) {
+    YS yv[MB] = {0};
+    for (size_t j = 0; j < n; ++j) {
+      const auto xj = x[j];
+      #pragma unroll(MB)
+      for (unsigned m = 0; m < MB; ++m) {
+        yv[m] += a[m * n + j] * xj;
+      }
+    }
+    #pragma unroll(MB)
+    for (unsigned m = 0; m < MB; ++m) {
+      y[m] += alpha * yv[m];
+    }
+}
+
+/*! compute multiple entries of Y at the same time
+*/
+template <typename Alpha, typename AS, typename XS, typename YS>
+void gemv_m_blocked_unsafe(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x,
+  YS * KOKKOS_RESTRICT y,
+  const size_t blockSize
+  ) {
+
+    size_t i = 0;
+    for (; i + 8 <= blockSize; i += 8) {
+      multidot_unsafe_nostride<8>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 7 <= blockSize; i += 7) {
+      multidot_unsafe_nostride<7>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 4 <= blockSize; i += 4) {
+      multidot_unsafe_nostride<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 2 <= blockSize; i += 2) {
+      multidot_unsafe_nostride<2>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 1 <= blockSize; i += 1) {
+      multidot_unsafe_nostride<1>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+}
+
 /*! dot MB rows of `a` with `x`, writing MB products into Y
 
   If the strides can be known to be 1 at compile-time, performance can really be improved. Force inline to try to propagate as much stride info as possible.
 */
 template <
 unsigned MB, 
-typename Alpha, typename AScalar, typename XSCalar, typename YScalar
+typename Alpha, typename AScalar, typename XScalar, typename YScalar
 >
 KOKKOS_FORCEINLINE_FUNCTION
 void multidot_unsafe(
   const Alpha alpha,
   const AScalar * KOKKOS_RESTRICT a,
-  size_t aStride0, // stride between entries in dim 0 of a
-  size_t aStride1, // stride between entires in dim 1 of a
-  const XSCalar * KOKKOS_RESTRICT x,
-  size_t xStride, // stride between entries of x
+  const size_t aStride0, // stride between entries in dim 0 of a
+  const XScalar * KOKKOS_RESTRICT x,
   YScalar * KOKKOS_RESTRICT y, // at least MB long
-  size_t yStride, // stride between entries of y
   const size_t n // length of rows of a (and x)
   ) {
     YScalar yv[MB] = {0};
     for (size_t j = 0; j < n; ++j) {
-      const auto xj = x[j * xStride];
+      const XScalar xj = x[j];
       #pragma unroll(MB)
       for (unsigned m = 0; m < MB; ++m) {
-        yv[m] += a[m * aStride0 + j * aStride1] * xj;
+        yv[m] += a[m * aStride0 + j] * xj;
       }
     }
     #pragma unroll(MB)
     for (unsigned m = 0; m < MB; ++m) {
-      y[m * yStride] += alpha * yv[m];
+      y[m] += alpha * yv[m];
     }
 }
 
@@ -267,42 +318,23 @@ void multidot(
     static_assert(XVector::rank == 1, "");
     static_assert(YVector::rank == 1, "");
 
-    // multidot_unsafe<MB>(
-    //   alpha,
-    //   a.data(), a.stride_0(), a.stride_1(),
-    //   x.data(), x.stride_0(),
-    //   y.data(), y.stride_0(),
-    //   x.extent(0)
-    // );
-
-    // for many calls to this function, we will know these
-    // strides statically, which helps inline them into the
-    // multidot_unsafe call
-    unsigned xStride = 
-      std::is_same_v<typename XVector::array_layout, Kokkos::LayoutStride> ? x.stride_0() : 1;
-
-    unsigned yStride =
-      std::is_same_v<typename YVector::array_layout, Kokkos::LayoutStride> ? y.stride_0() : 1;
-
-    unsigned aStride0 = 
-      std::is_same_v<typename AMatrix::array_layout, Kokkos::LayoutLeft> ? 1 : a.stride_0();
-
-    unsigned aStride1 = 
-      std::is_same_v<typename AMatrix::array_layout, Kokkos::LayoutRight> ? 1 : a.stride_1();
-
-    // std::cerr << xStride << " " << yStride << " " << aStride0 << " " << aStride1 << "\n";
+    static_assert(std::is_same_v<typename AMatrix::array_layout, Kokkos::LayoutRight>, "");
+    static_assert(!std::is_same_v<typename XVector::array_layout, Kokkos::LayoutStride>, "");
+    static_assert(!std::is_same_v<typename YVector::array_layout, Kokkos::LayoutStride>, "");
 
     multidot_unsafe<MB>(
       alpha,
-      a.data(), aStride0, aStride1,
-      x.data(), xStride,
-      y.data(), yStride,
-      x.extent(0)
+      a.data(), a.stride_0(),
+      x.data(),
+      y.data(),
+      x.size()
     );
 
 }
 
 /*! compute multiple entries of Y at the same time
+
+    require x and y to be contiguous
 */
 template <typename Alpha, typename AMatrix, typename XVector, typename YVector>
 void gemv_m_blocked(
@@ -311,7 +343,8 @@ void gemv_m_blocked(
   const XVector &x,
   const YVector &y
   ) {
-    const size_t numRows = y.extent(0);
+    
+    const size_t numRows = y.size();
     size_t i = 0;
     for (; i + 8 <= numRows; i += 8) {
       const Kokkos::pair rows{size_t(i), size_t(i+8)};
@@ -387,7 +420,7 @@ void gemv_n_blocked_2(
 }
 
 template <typename Alpha, typename AMatrix, typename XVector, typename Beta, typename YVector>
-void bsr_spmv(const Alpha &alpha, 
+void bsr_spmv(const Alpha alpha, 
 const AMatrix &a, 
 const XVector &x, const Beta beta, const YVector &y) {
   using a_ordinal_type = typename AMatrix::non_const_ordinal_type;
@@ -400,13 +433,14 @@ const XVector &x, const Beta beta, const YVector &y) {
   const a_ordinal_type blockSize = a.blockDim();
   const a_ordinal_type numRows = a.numRows();
 
-  // cheaper subviews
-  auto ux = KokkosKernels::Impl::make_unmanaged(x);
-  auto uy = KokkosKernels::Impl::make_unmanaged(y);
+  // TODO:
+  // optionally pack X and Y into contiguous versions if they're non-contiguous
+
+  auto * KOKKOS_RESTRICT yp = y.data();
 
   // scale y
   for (size_t i = 0; i < numRows * blockSize; ++i) {
-    uy[i] = beta * uy[i];
+    y[i] = beta * y[i];
   }
 
   for (a_ordinal_type i = 0; i < numRows; ++i) {
@@ -429,7 +463,11 @@ const XVector &x, const Beta beta, const YVector &y) {
            &x[j * blockSize],
            &y[i * blockSize],
            blockSize);
-#else 
+#elif 0
+      // cheaper subviews
+      auto ux = KokkosKernels::Impl::make_unmanaged(x);
+      auto uy = KokkosKernels::Impl::make_unmanaged(y);
+
       const Kokkos::pair blockCols{size_t(j*blockSize), size_t((j+1)*blockSize)};
       const Kokkos::pair blockRows{size_t(i*blockSize), size_t((i+1)*blockSize)};
       auto xs = Kokkos::subview(ux, blockCols);
@@ -440,9 +478,18 @@ const XVector &x, const Beta beta, const YVector &y) {
            a.unmanaged_block(ji),
            xs,
            ys);
+#else
+      const auto * KOKKOS_RESTRICT aVals = a.values.data();
+      gemv_m_blocked_unsafe(alpha,
+           &aVals[ji * blockSize * blockSize], 
+           &x[j * blockSize],
+           &y[i * blockSize],
+           blockSize);
 #endif
     }
   }
+
+  // Kokkos::deep_copy(y, yll);
 }
 
 // This was not provided
