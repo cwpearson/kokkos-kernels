@@ -22,21 +22,23 @@ namespace KokkosKernels {
 
 namespace Impl {
 
-
 template <typename View>
-auto make_unmanaged(const View &v) {
-
+class with_unmanaged {
     using data_type = typename View::data_type;
     using layout_type = typename View::array_layout;
     using memory_space = typename View::memory_space;
 
     using orig_traits = typename View::memory_traits;
-    constexpr unsigned new_traits = orig_traits::impl_value | Kokkos::Unmanaged;
-
-    using unmanaged_type = Kokkos::View<data_type, layout_type, memory_space, 
+    static constexpr unsigned new_traits = orig_traits::impl_value | Kokkos::Unmanaged;
+public:
+  using type = Kokkos::View<data_type, layout_type, memory_space, 
       Kokkos::MemoryTraits<new_traits>
     >;
-    return unmanaged_type(v);
+};
+
+template <typename View>
+auto make_unmanaged(const View &v) {
+    return typename with_unmanaged<View>::type(v);
 }
 
 
