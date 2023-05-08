@@ -286,14 +286,14 @@ void gemv_m_blocked_unsafe_nostride(
   ) {
 
     size_t i = 0;
-    for (; i + 8 <= blockSize; i += 8) {
-      multidot_unsafe_nostride<8>(alpha, &a[i * blockSize], x, &y[i], blockSize);
-    }
-    for (; i + 7 <= blockSize; i += 7) {
-      multidot_unsafe_nostride<7>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    for (; i + 5 <= blockSize; i += 5) {
+      multidot_unsafe_nostride<5>(alpha, &a[i * blockSize], x, &y[i], blockSize);
     }
     for (; i + 4 <= blockSize; i += 4) {
       multidot_unsafe_nostride<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+    }
+    for (; i + 3 <= blockSize; i += 3) {
+      multidot_unsafe_nostride<3>(alpha, &a[i * blockSize], x, &y[i], blockSize);
     }
     for (; i + 2 <= blockSize; i += 2) {
       multidot_unsafe_nostride<2>(alpha, &a[i * blockSize], x, &y[i], blockSize);
@@ -316,14 +316,14 @@ void gemv_m_blocked_unsafe(
   ) {
 
     size_t i = 0;
-    for (; i + 8 <= blockSize; i += 8) {
-      multidot_unsafe<8>(alpha, &a[i * blockSize], aStride0, x, &y[i], blockSize);
-    }
     for (; i + 5 <= blockSize; i += 5) {
       multidot_unsafe<5>(alpha, &a[i * blockSize], aStride0, x, &y[i], blockSize);
     }
     for (; i + 4 <= blockSize; i += 4) {
       multidot_unsafe<4>(alpha, &a[i * blockSize], aStride0, x, &y[i], blockSize);
+    }
+    for (; i + 3 <= blockSize; i += 3) {
+      multidot_unsafe<3>(alpha, &a[i * blockSize], aStride0, x, &y[i], blockSize);
     }
     for (; i + 2 <= blockSize; i += 2) {
       multidot_unsafe<2>(alpha, &a[i * blockSize], aStride0, x, &y[i], blockSize);
@@ -376,23 +376,23 @@ void gemv_m_blocked(
     
     const size_t numRows = y.size();
     size_t i = 0;
-    for (; i + 8 <= numRows; i += 8) {
-      const Kokkos::pair rows{size_t(i), size_t(i+8)};
+    for (; i + 5 <= numRows; i += 5) {
+      const Kokkos::pair rows{size_t(i), size_t(i+5)};
       auto as = Kokkos::subview(a, rows, Kokkos::ALL);
       auto ys = Kokkos::subview(y, rows);
-      multidot<8>(alpha, as, x, ys);
-    }
-    for (; i + 7 <= numRows; i += 7) {
-      const Kokkos::pair rows{size_t(i), size_t(i+7)};
-      auto as = Kokkos::subview(a, rows, Kokkos::ALL);
-      auto ys = Kokkos::subview(y, rows);
-      multidot<7>(alpha, as, x, ys);
+      multidot<5>(alpha, as, x, ys);
     }
     for (; i + 4 <= numRows; i += 4) {
       const Kokkos::pair rows{size_t(i), size_t(i+4)};
       auto as = Kokkos::subview(a, rows, Kokkos::ALL);
       auto ys = Kokkos::subview(y, rows);
       multidot<4>(alpha, as, x, ys);
+    }
+    for (; i + 3 <= numRows; i += 3) {
+      const Kokkos::pair rows{size_t(i), size_t(i+3)};
+      auto as = Kokkos::subview(a, rows, Kokkos::ALL);
+      auto ys = Kokkos::subview(y, rows);
+      multidot<3>(alpha, as, x, ys);
     }
     for (; i + 2 <= numRows; i += 2) {
       const Kokkos::pair rows{size_t(i), size_t(i+2)};
