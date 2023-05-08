@@ -74,8 +74,8 @@ void gemv_rows(
   ) {
 
   size_t j = 0;
-  for (; j + 7 <= rowLen; j += 7) {
-    gemv_tile<M, 7>(alpha, &a[j], &x[j], y, rowLen);
+  for (; j + 5 <= rowLen; j += 5) {
+    gemv_tile<M, 5>(alpha, &a[j], &x[j], y, rowLen);
   }
   for (; j + 4 <= rowLen; j += 4) {
     gemv_tile<M, 4>(alpha, &a[j], &x[j], y, rowLen);
@@ -122,8 +122,8 @@ void gemv_mn_tiled(
   }
 #elif 1
   size_t i = 0;
-  for (; i + 7 <= blockSize; i += 7) {
-    gemv_rows<7>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+  for (; i + 5 <= blockSize; i += 5) {
+    gemv_rows<5>(alpha, &a[i * blockSize], x, &y[i], blockSize);
   }
   for (; i + 4 <= blockSize; i += 4) {
     gemv_rows<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
@@ -170,8 +170,8 @@ void gemv_mn_blocked(
   }
 #elif 1
   size_t i = 0;
-  for (; i + 8 <= blockSize; i += 8) {
-    gemv_rows<8>(alpha, &a[i * blockSize], x, &y[i], blockSize);
+  for (; i + 5 <= blockSize; i += 5) {
+    gemv_rows<5>(alpha, &a[i * blockSize], x, &y[i], blockSize);
   }
   for (; i + 4 <= blockSize; i += 4) {
     gemv_rows<4>(alpha, &a[i * blockSize], x, &y[i], blockSize);
@@ -215,6 +215,31 @@ void gemv_n_blocked(
         acc += a[i * blockSize + j] * x[j];
       }
       y[i] += alpha * acc;
+    }
+}
+
+/*! produce a single entry of Y by dotting a row of A0 and A1 with X
+*/
+template <typename Alpha, typename AS, typename XS, typename YS>
+void gemv_n_blocked_batch2(
+  const Alpha alpha,
+  const AS * KOKKOS_RESTRICT a,
+  const XS * KOKKOS_RESTRICT x0,
+  const XS * KOKKOS_RESTRICT x1,
+  YS * KOKKOS_RESTRICT y,
+  const size_t blockSize
+  ) {
+
+    const size_t bs2 = blockSize * blockSize;
+
+    for (size_t i = 0; i < blockSize; ++i) {
+      YS acc0 = 0;
+      YS acc1 = 0;
+      for (size_t j = 0; j < blockSize; ++j) {
+        acc0 += a[      i * blockSize + j] * x0[j];
+        acc1 += a[bs2 + i * blockSize + j] * x1[j];
+      }
+      y[i] += alpha * (acc0 + acc1);
     }
 }
 
@@ -432,7 +457,7 @@ void gemv_n_blocked_2(
       for (; j + NB <= blockSize; j += NB) {
         auto aij = &a[i * blockSize + j];
         auto xj = &x[j];
-        #pragma clang loop vectorize_width(NB) interleave_count(NB)
+        #pragma unroll(NB)
         for (size_t jj = 0; jj < NB; ++jj) {
           yv[jj] += aij[jj] * xj[jj];
         }
@@ -501,6 +526,12 @@ const XVector &x, const Beta beta, const YVector &y) {
            &y[i * blockSize],
            blockSize);
 #elif 0
+      gemv_n_blocked(alpha,
+           &aVals[ji * blockSize * blockSize], 
+           &x[j * blockSize],
+           &y[i * blockSize],
+           blockSize);
+#elif 0
       const Kokkos::pair blockCols{size_t(j*blockSize), size_t((j+1)*blockSize)};
       const Kokkos::pair blockRows{size_t(i*blockSize), size_t((i+1)*blockSize)};
       auto xs = Kokkos::subview(ux, blockCols);
@@ -511,13 +542,13 @@ const XVector &x, const Beta beta, const YVector &y) {
            a.unmanaged_block(ji),
            xs,
            ys);
-#elif 0
+#elif 1
       gemv_m_blocked_unsafe_nostride(alpha,
            &aVals[ji * blockSize * blockSize], 
            &x[j * blockSize],
            &y[i * blockSize],
            blockSize);
-#elif 1
+#elif 0
       gemv_m_blocked_unsafe(alpha,
            &aVals[ji * blockSize * blockSize],
            blockSize,
@@ -525,6 +556,65 @@ const XVector &x, const Beta beta, const YVector &y) {
            &y[i * blockSize],
            blockSize);
 #endif
+    }
+  }
+
+}
+
+template <typename Alpha, typename AMatrix, typename XVector, typename Beta, typename YVector>
+void bsr_spmv_batch2(const Alpha alpha, 
+const AMatrix &a, 
+const XVector &x, const Beta beta, const YVector &y) {
+  using a_ordinal_type = typename AMatrix::non_const_ordinal_type;
+  static_assert(XVector::rank == 1, "");
+  static_assert(YVector::rank == 1, "");
+
+
+  const auto * KOKKOS_RESTRICT aRows = a.graph.row_map.data();
+  const auto * KOKKOS_RESTRICT aCols = a.graph.entries.data();
+  const a_ordinal_type blockSize = a.blockDim();
+  const a_ordinal_type numRows = a.numRows();
+
+  // TODO:
+  // optionally pack X and Y into contiguous versions if they're non-contiguous
+
+  auto * KOKKOS_RESTRICT yp = y.data();
+  const auto * KOKKOS_RESTRICT aVals = a.values.data();
+
+  // scale y
+  for (size_t i = 0; i < numRows * blockSize; ++i) {
+    y[i] = beta * y[i];
+  }
+
+  for (a_ordinal_type i = 0; i < numRows; ++i) {
+    const size_t rowBegin = aRows[i];
+    const size_t rowEnd = aRows[i+1];
+
+    size_t ji = rowBegin;
+
+    // two blocks at once as long as the row is long enough
+    for (; ji + 2 <= rowEnd; ji += 2) {
+      const size_t ji0 = ji + 0;
+      const size_t ji1 = ji + 1;
+      const a_ordinal_type j0 = aCols[ji0];
+      const a_ordinal_type j1 = aCols[ji1];
+      gemv_n_blocked_batch2(alpha,
+           &aVals[ji0 * blockSize * blockSize], 
+           &x[j0 * blockSize],
+           &x[j1 * blockSize],
+           &y[i * blockSize], // both blocks in the same row
+           blockSize);
+    }
+
+    // any remaining blocks
+    for (; ji < rowEnd; ++ji) {
+      // both blocks in same row
+      const a_ordinal_type j = aCols[ji];
+      gemv_n_blocked(alpha,
+           &aVals[(ji+0) * blockSize * blockSize], 
+           &x[j * blockSize],
+           &y[i * blockSize],
+           blockSize);
     }
   }
 
@@ -542,6 +632,7 @@ void apply_serial(const Alpha &alpha, const AMatrix &a, const XVector &x,
 
   Kokkos::RangePolicy<typename YVector::execution_space> policy(0, y.size());
   if constexpr(YVector::rank == 1 && XVector::rank == 1) {
+    // bsr_spmv(alpha, a, x, beta, y);
     bsr_spmv(alpha, a, x, beta, y);
   } else {
     // apply to each vector in turn (just to check correctness)
