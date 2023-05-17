@@ -152,25 +152,20 @@ struct SPMV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM, false,
       const KokkosKernels::Experimental::Controls &controls, const char mode[],
       const YScalar &alpha, const AMatrix &A, const XVector &X,
       const YScalar &beta, const YVector &Y) {
-
     if ((mode[0] == KokkosSparse::NoTranspose[0])) {
-      if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "tpetra")) {
+      if (controls.isParameterSetTo("algorithm", "tpetra")) {
         KokkosSparse::Impl::apply_tpetra(alpha, A, X, beta, Y);
         return;
       }
-      if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "app")) {
+      if (controls.isParameterSetTo("algorithm", "app")) {
         KokkosSparse::Impl::apply_app(alpha, A, X, beta, Y);
         return;
       }
-      if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "modified_app")) {
-            KokkosSparse::Impl::apply_modified_app(alpha, A, X, beta, Y);
+      if (controls.isParameterSetTo("algorithm", "modified_app")) {
+        KokkosSparse::Impl::apply_modified_app(alpha, A, X, beta, Y);
         return;
       }
     }
-
 
     if ((mode[0] == KokkosSparse::NoTranspose[0]) ||
         (mode[0] == KokkosSparse::Conjugate[0])) {
@@ -218,7 +213,8 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
       typedef typename AMatrix::non_const_value_type AScalar;
       typedef typename XVector::non_const_value_type XScalar;
       // try to use tensor cores if requested
-      if (controls.isParameter("algorithm") && controls.getParameter("algorithm") == "experimental_bsr_tc")
+      if (controls.isParameter("algorithm") &&
+          controls.getParameter("algorithm") == "experimental_bsr_tc")
         method = Method::TensorCores;
       // can't use tensor cores for complex
       if (Kokkos::ArithTraits<YScalar>::is_complex) method = Method::Fallback;
@@ -316,20 +312,15 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
 #endif  // defined(KOKKOS_ENABLE_CUDA) && defined(KOKKOS_ARCH_AMPERE)
 
     if ((mode[0] == KokkosSparse::NoTranspose[0])) {
-      if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "tpetra")) {
+      if (controls.isParameterSetTo("algorithm", "tpetra")) {
         KokkosSparse::Impl::apply_tpetra(alpha, A, X, beta, Y);
         return;
       }
-      if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "app")) {
-            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
+      if (controls.isParameterSetTo("algorithm", "app")) {
         KokkosSparse::Impl::apply_app(alpha, A, X, beta, Y);
         return;
       }
-      if (controls.isParameter("algorithm") &&
-          (controls.getParameter("algorithm") == "modified_app")) {
-            std::cerr << __FILE__ << ":" << __LINE__ << "\n";
+      if (controls.isParameterSetTo("algorithm", "modified_app")) {
         KokkosSparse::Impl::apply_modified_app(alpha, A, X, beta, Y);
         return;
       }
