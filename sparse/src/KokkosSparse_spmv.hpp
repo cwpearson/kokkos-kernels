@@ -337,7 +337,7 @@ void spmv(KokkosKernels::Experimental::Controls controls, const char mode[],
   // Whether to call KokkosKernel's native implementation, even if a TPL impl is
   // available
   bool useFallback = controls.isParameter("algorithm") &&
-                     controls.getParameter("algorithm") == "native";
+                     controls.getParameter("algorithm") != "tpl";
 
 #ifdef KOKKOSKERNELS_ENABLE_TPL_CUSPARSE
   // cuSPARSE does not support the modes (C), (T), (H)
