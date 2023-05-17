@@ -72,6 +72,21 @@ class Controls {
     }
   }
 
+  /// \brief \c true iff parameter \c name has value \c value , false otherwise
+  ///
+  /// Shorthand for ::isParameter(name) && (::getParameter(name) == value)
+  /// \param name the name of the parameter to retrieve
+  /// \param value the value to compare the named parameter with
+  bool isParameterSetTo(const std::string& name,
+                        const std::string& value) const {
+    auto search = kernel_parameters.find(name);
+    if (kernel_parameters.end() == search) {
+      return false;
+    } else {
+      return search->second == value;
+    }
+  }
+
 #ifdef KOKKOSKERNELS_ENABLE_TPL_CUBLAS
   mutable cublasHandle_t cublasHandle = 0;
 
