@@ -107,7 +107,6 @@ std::string as_string() {
   else {
     static_assert(always_false<T>, "unhandled type for as_string");
   }
-  KOKKOSKERNELS_IMPL_UNREACHABLE();
 }
 
 class WrappedBool {
