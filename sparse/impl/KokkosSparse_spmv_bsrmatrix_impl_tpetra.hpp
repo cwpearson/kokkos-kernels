@@ -442,8 +442,8 @@ class BcrsApplyNoTransFunctor {
   // Range Policy for non built-in types
   KOKKOS_INLINE_FUNCTION void operator()(
       const local_ordinal_type& lclRow) const {
-    using Kokkos::Details::ArithTraits;
-    using KAT = Kokkos::Details::ArithTraits<beta_coeff_type>;
+    using Kokkos::ArithTraits;
+    using KAT = Kokkos::ArithTraits<beta_coeff_type>;
 
     typedef typename decltype(ptr_)::non_const_value_type offset_type;
     typedef Kokkos::View<typename MatrixValuesType::const_value_type**,
@@ -584,7 +584,7 @@ class BcrsApplyNoTransFunctor<AlphaCoeffType, GraphType, MatrixValuesType,
           typename device_type::execution_space>::member_type& member) const {
     const local_ordinal_type lclRow = member.league_rank();
 
-    using Kokkos::Details::ArithTraits;
+    using Kokkos::ArithTraits;
     // I'm not writing 'using Kokkos::make_pair;' here, because that
     // may break builds for users who make the mistake of putting
     // 'using namespace std;' in the global namespace.  Please don't
@@ -636,7 +636,7 @@ class BcrsApplyNoTransFunctor<AlphaCoeffType, GraphType, MatrixValuesType,
             //   X_(X_ptBeg)
             // );
             X_cur =
-                subview(X_, ::Kokkos::make_pair(X_ptBeg, X_ptBeg + blockSize_));
+                subview(X_, ::Kokkos::make_pair(X_ptBeg, X_ptBeg + offset_type(blockSize_)));
 
             Kokkos::parallel_for(
                 Kokkos::ThreadVectorRange(member, blockSize_),
