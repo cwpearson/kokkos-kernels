@@ -39,11 +39,15 @@ class with_unmanaged {
 };
 
 /*! \brief A type that is View with Kokkos::Unmanaged added to the memory traits
+
+    \tparam View the type to add Kokkos::Unmanaged to
  */
 template <typename View>
 using with_unmanaged_t = typename with_unmanaged<View>::type;
 
 /*! \brief Returns an unmanaged version of v
+
+    \tparam View the type of the input view v
  */
 template <typename View>
 auto make_unmanaged(const View &v) {
