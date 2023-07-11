@@ -27,6 +27,8 @@
 
 #include <Kokkos_Core.hpp>
 
+#include <KokkosKernels_ViewUtils.hpp>
+
 namespace KokkosSparse {
 namespace Impl {
 
@@ -107,13 +109,18 @@ void apply_app(const Alpha &alpha, const AMatrix &a, const XVector &x,
   }
 }
 
+
+/* One thread for each entry in the product multivector
+
+   Each thread accumulates the partial products for its entry, and writes it out.
+*/
 template <
 typename Alpha,
 typename AMatrix,
 typename XVector,
 typename Beta,
 typename YVector>
-class ModifiedApp {
+class NonTransRangeYEntries {
 
   using LO = typename AMatrix::non_const_ordinal_type;
 
@@ -124,7 +131,7 @@ class ModifiedApp {
   YVector y_;
 
  public:
-  ModifiedApp(const Alpha &alpha, const AMatrix &a, const XVector &x, const Beta &beta, const YVector &y)
+  NonTransRangeYEntries(const Alpha &alpha, const AMatrix &a, const XVector &x, const Beta &beta, const YVector &y)
       : alpha_(alpha),
         a_(a),
         x_(x),
@@ -140,8 +147,8 @@ class ModifiedApp {
     using ConstBlock = Kokkos::View<const Accum **, BlockLayout,
                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
-    const LO irhs     = k / y_.extent(0);
-    const LO row      = k % y_.extent(0);
+    const LO irhs = k / y_.extent(0);
+    const LO row  = k % y_.extent(0);
 
     // scale by beta
     if (0 == beta_) {
@@ -180,14 +187,20 @@ class ModifiedApp {
 
   KOKKOS_INLINE_FUNCTION void operator()(const size_t k) const {
 
-    if (false) {} 
-    else if (1 == a_.blockDim()) { impl<1>(k); }
-    else if (2 == a_.blockDim()) { impl<2>(k); }
-    else if (3 == a_.blockDim()) { impl<3>(k); }
-    else if (4 == a_.blockDim()) { impl<4>(k); }
-    else if (5 == a_.blockDim()) { impl<5>(k); }
-    else if (6 == a_.blockDim()) { impl<6>(k); }
-    else if (7 == a_.blockDim()) { impl<7>(k); }
+    if (false) {}
+    // clang-format off
+    else if ( 1 == a_.blockDim()) { impl<1>(k); }
+    else if ( 2 == a_.blockDim()) { impl<2>(k); }
+    else if ( 3 == a_.blockDim()) { impl<3>(k); }
+    else if ( 4 == a_.blockDim()) { impl<4>(k); }
+    else if ( 5 == a_.blockDim()) { impl<5>(k); }
+    else if ( 6 == a_.blockDim()) { impl<6>(k); }
+    else if ( 7 == a_.blockDim()) { impl<7>(k); }
+    else if ( 8 == a_.blockDim()) { impl<8>(k); }
+    else if ( 9 == a_.blockDim()) { impl<9>(k); }
+    else if (10 == a_.blockDim()) { impl<10>(k); }
+    else if (11 == a_.blockDim()) { impl<11>(k); }
+    // clang-format on
     else {impl<0>(k);}
   }
 
@@ -199,41 +212,23 @@ template <typename Alpha, typename AMatrix, typename XVector, typename Beta,
 void apply_modified_app(const Alpha &alpha, const AMatrix &a, const XVector &x,
                  const Beta &beta, const YVector &y) {
 
-  // kokkos/core/src/impl/KokkosExp_IterateTileGPU.hpp
-  // left-iteration seems to go through the left index before
-  // incrementing the right index
-  // inner iteration doesn't matter because the tile size is 1
-  // using Rank = Kokkos::Rank<2, Kokkos::Iterate::Left, Kokkos::Iterate::Default>;
   using execution_space = typename YVector::execution_space;
-
 
   Kokkos::RangePolicy<execution_space> policy(0, y.size());
   if constexpr(YVector::rank == 1) {
-    const Kokkos::View<typename YVector::value_type*[1], typename YVector::device_type, typename YVector::memory_traits> yu(y.data(), y.extent(0), 1);
-    const Kokkos::View<typename XVector::value_type*[1], typename XVector::device_type, typename XVector::memory_traits> xu(x.data(), x.extent(0), 1);
-    
-    // tile-size 1 matches the 1-D RangePolicy
-    // Kokkos::MDRangePolicy<execution_space, Rank> policy(
-    //   {size_t(0),size_t(0)},
-    //   {yu.extent(0), yu.extent(1)},
-    //   {1,1});
-    
-    ModifiedApp op(alpha, a, xu, beta, yu);
+
+    // convert to a 2D view with extent 1 in the second dimension
+    using Y2D = KokkosKernels::Impl::with_unmanaged_t<Kokkos::View<typename YVector::value_type*[1], typename YVector::device_type, typename YVector::memory_traits>>;
+    using X2D = KokkosKernels::Impl::with_unmanaged_t<Kokkos::View<typename XVector::value_type*[1], typename XVector::device_type, typename XVector::memory_traits>>;
+    const Y2D yu(y.data(), y.extent(0), 1);
+    const X2D xu(x.data(), x.extent(0), 1);
+    NonTransRangeYEntries op(alpha, a, xu, beta, yu);
     Kokkos::parallel_for(policy, op);
   } else {
-
-    // Kokkos::MDRangePolicy<execution_space, Rank> policy(
-    //   {size_t(0),size_t(0)},
-    //   {y.extent(0), y.extent(1)},
-    //   {1,1});
-
-    ModifiedApp op(alpha, a, x, beta, y);
+    NonTransRangeYEntries op(alpha, a, x, beta, y);
     Kokkos::parallel_for(policy, op);
   }
 }
-
-
-
 
 }  // namespace Impl
 }  // namespace KokkosSparse

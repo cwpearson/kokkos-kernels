@@ -51,10 +51,6 @@ namespace fs = std::filesystem;
 #include "KokkosSparse_crs_to_bsr_impl.hpp"
 #include "KokkosSparse_crs_detect_block_size.hpp"
 
-#include "KokkosSparse_spmv_bsrmatrix_impl_app.hpp"
-#include "KokkosSparse_spmv_bsrmatrix_impl_serial.hpp"
-#include "KokkosSparse_spmv_bsrmatrix_impl_tpetra.hpp"
-
 using namespace KokkosKernelsBenchmark;
 
 /*  Since benchmarks have to be defined before they are executed, the file IO
@@ -245,7 +241,9 @@ struct SpmvModifiedApp {
             typename YView>
   static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
                    const XView &x, const Beta &beta, const YView &y) {
-    return KokkosSparse::Impl::apply_modified_app(alpha, crs, x, beta, y);
+    KokkosKernels::Experimental::Controls controls;
+    controls.setParameter("algorithm", "modified_app");
+    return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
   }
 
   static std::string name() { return "modified_app"; }
@@ -257,7 +255,9 @@ struct SpmvApp {
             typename YView>
   static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
                    const XView &x, const Beta &beta, const YView &y) {
-    return KokkosSparse::Impl::apply_app(alpha, crs, x, beta, y);
+    KokkosKernels::Experimental::Controls controls;
+    controls.setParameter("algorithm", "app");
+    return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
   }
 
   static std::string name() { return "app"; }
@@ -269,7 +269,9 @@ struct SpmvTpetra {
             typename YView>
   static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
                    const XView &x, const Beta &beta, const YView &y) {
-    return KokkosSparse::Impl::apply_tpetra(alpha, crs, x, beta, y);
+    KokkosKernels::Experimental::Controls controls;
+    controls.setParameter("algorithm", "tpetra");
+    return KokkosSparse::spmv(controls, mode, alpha, crs, x, beta, y);
   }
 
   static std::string name() { return "tpetra"; }
@@ -477,7 +479,6 @@ void register_converts(const fs::path &path, const size_t bs) {
 #if defined(KOKKOS_ENABLE_SERIAL)
   register_convert_type<int64_t, double, size_t, Device, SpmvSerial>(path, bs);
 #endif
-
 
   register_convert_type<int64_t, double, int64_t, Device, SpmvDefault>(path, bs);
   register_convert_type<int64_t, double, int64_t, Device, SpmvNative>(path, bs);
