@@ -45,7 +45,7 @@ namespace fs = std::filesystem;
 
 #include <Kokkos_ArithTraits.hpp>
 
-#include "KokkosKernels_BenchmarkUtils.hpp"
+#include "Benchmark_Utils.hpp"
 #include "KokkosSparse_CrsMatrix.hpp"
 #include "KokkosSparse_IOUtils.hpp"
 #include "KokkosSparse_spmv.hpp"
