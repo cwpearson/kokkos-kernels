@@ -51,6 +51,10 @@ namespace fs = std::filesystem;
 #include "KokkosSparse_crs_to_bsr_impl.hpp"
 #include "KokkosSparse_crs_detect_block_size.hpp"
 
+#include "KokkosSparse_spmv_bsrmatrix_impl_app.hpp"
+#include "KokkosSparse_spmv_bsrmatrix_impl_serial.hpp"
+#include "KokkosSparse_spmv_bsrmatrix_impl_tpetra.hpp"
+
 using namespace KokkosKernelsBenchmark;
 
 /*  Since benchmarks have to be defined before they are executed, the file IO
@@ -233,6 +237,57 @@ struct SpmvNative {
   }
 
   static std::string name() { return "native"; }
+};
+
+// Wrapper to create a common interface for all SpMVs to benchmark
+struct SpmvModifiedApp {
+  template <typename Alpha, typename Matrix, typename XView, typename Beta,
+            typename YView>
+  static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
+                   const XView &x, const Beta &beta, const YView &y) {
+    KokkosKernels::Experimental::Controls controls;
+    return KokkosSparse::Impl::apply_modified_app(controls, mode, alpha, crs, x, beta, y);
+  }
+
+  static std::string name() { return "modified_app"; }
+};
+
+// Wrapper to create a common interface for all SpMVs to benchmark
+struct SpmvApp {
+  template <typename Alpha, typename Matrix, typename XView, typename Beta,
+            typename YView>
+  static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
+                   const XView &x, const Beta &beta, const YView &y) {
+    KokkosKernels::Experimental::Controls controls;
+    return KokkosSparse::Impl::apply_app(controls, mode, alpha, crs, x, beta, y);
+  }
+
+  static std::string name() { return "app"; }
+};
+
+// Wrapper to create a common interface for all SpMVs to benchmark
+struct SpmvTpetra {
+  template <typename Alpha, typename Matrix, typename XView, typename Beta,
+            typename YView>
+  static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
+                   const XView &x, const Beta &beta, const YView &y) {
+    KokkosKernels::Experimental::Controls controls;
+    return KokkosSparse::Impl::apply_tpetra(controls, mode, alpha, crs, x, beta, y);
+  }
+
+  static std::string name() { return "tpetra"; }
+};
+
+struct SpmvSerial {
+  template <typename Alpha, typename Matrix, typename XView, typename Beta,
+            typename YView>
+  static void spmv(const char *mode, const Alpha &alpha, const Matrix &crs,
+                   const XView &x, const Beta &beta, const YView &y) {
+    KokkosKernels::Experimental::Controls controls;
+    return KokkosSparse::Impl::apply_serial(controls, mode, alpha, crs, x, beta, y);
+  }
+
+  static std::string name() { return "serial"; }
 };
 
 template <typename Spmv, typename Bsr>
