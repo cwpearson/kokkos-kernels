@@ -45,6 +45,7 @@ namespace fs = std::filesystem;
 
 #include <Kokkos_ArithTraits.hpp>
 
+#include "KokkosKernels_BenchmarkUtils.hpp"
 #include "KokkosSparse_CrsMatrix.hpp"
 #include "KokkosSparse_IOUtils.hpp"
 #include "KokkosSparse_spmv.hpp"
@@ -120,27 +121,6 @@ size_t detect_block_size(const fs::path &path) {
   }
   return cache.at(path);
 }
-
-// a bool by a different name, to make its purpose clear
-class DieOnError {
- public:
-  DieOnError(const bool &val) : val_(val) {}
-
-  operator bool() const { return val_; }
-
- private:
-  bool val_;
-};
-
-// a bool by a different name, to make its purpose clear
-class SkipOnError {
- public:
-  SkipOnError(const bool &val) : val_(val) {}
-  operator bool() const { return val_; }
-
- private:
-  bool val_;
-};
 
 // Test that y_act is close to y_exp.
 // This needs the matrix, alpha, and beta to compute the error tolerance

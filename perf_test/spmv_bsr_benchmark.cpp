@@ -310,9 +310,9 @@ void register_expand_type(const fs::path &path) {
     for (size_t k : ks) {     // multivector sizes
       std::string name =
           std::string("MatrixMarketExpanded") + "/" + std::string(path.stem()) +
-          "/" + as_string<Scalar>() + "/" + as_string<Ordinal>() + "/" +
-          as_string<Offset>() + "/" + std::to_string(bs) + "/" +
-          std::to_string(k) + "/" + Spmv::name() + "/" + as_string<Device>();
+          "/" + Kokkos::ArithTraits<Scalar>::name() + "/" + Kokkos::ArithTraits<Ordinal>::name() + "/" +
+          Kokkos::ArithTraits<Offset>::name() + "/" + std::to_string(bs) + "/" +
+          std::to_string(k) + "/" + Spmv::name() + "/" + Device::name();
       benchmark::RegisterBenchmark(name.c_str(), read_expand_run<Bsr, Spmv>,
                                    path, bs, k)
           ->UseRealTime();
@@ -329,10 +329,10 @@ void register_convert_type(const fs::path &path, size_t bs) {
 
   for (size_t k : ks) {  // multivector sizes
     std::string name = std::string("MatrixMarketConvert") + "/" +
-                       std::string(path.stem()) + "/" + as_string<Scalar>() +
-                       "/" + as_string<Ordinal>() + "/" + as_string<Offset>() +
+                       std::string(path.stem()) + "/" + Kokkos::ArithTraits<Scalar>::name() +
+                       "/" + Kokkos::ArithTraits<Ordinal>::name() + "/" + Kokkos::ArithTraits<Offset>::name() +
                        "/" + std::to_string(bs) + "/" + std::to_string(k) +
-                       "/" + Spmv::name() + "/" + as_string<Device>();
+                       "/" + Spmv::name() + "/" + Device::name();
     benchmark::RegisterBenchmark(name.c_str(), read_convert_run<Bsr, Spmv>,
                                  path, bs, k)
         ->UseRealTime();
