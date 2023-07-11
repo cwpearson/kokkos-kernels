@@ -66,9 +66,4 @@ if(KokkosKernels_ENABLE_BENCHMARK)
         BenchmarkMain.cpp
     )
 
-    KOKKOSKERNELS_ADD_BENCHMARK(
-      Spmv_Bsr_Benchmark
-      SOURCES spmv_bsr_benchmark.cpp
-    )
-
 endif()
