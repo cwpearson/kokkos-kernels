@@ -433,16 +433,6 @@ template <typename Device>
 void register_converts(const fs::path &path, const size_t bs) {
   std::cerr << "benchmarks will use detected blocksize\n";
   // clang-format off
-  register_convert_type<int, float, unsigned, Device, SpmvDefault>(path, bs);
-  register_convert_type<int, float, unsigned, Device, SpmvNative>(path, bs);
-  register_convert_type<int, float, unsigned, Device, SpmvApp>(path, bs);
-  register_convert_type<int, float, unsigned, Device, SpmvModifiedApp>(path, bs);
-  register_convert_type<int, float, unsigned, Device, SpmvTpetra>(path, bs);
-#if defined(KOKKOS_ENABLE_SERIAL)
-  if constexpr (Kokkos::SpaceAccessibility<Device, Kokkos::HostSpace>::accessible) {
-    register_convert_type<int, float, unsigned, Device, SpmvSerial>(path, bs);
-  }
-#endif
 
   register_convert_type<int, float, int, Device, SpmvDefault>(path, bs);
   register_convert_type<int, float, int, Device, SpmvNative>(path, bs);
@@ -452,6 +442,28 @@ void register_converts(const fs::path &path, const size_t bs) {
 #if defined(KOKKOS_ENABLE_SERIAL)
   if constexpr (Kokkos::SpaceAccessibility<Device, Kokkos::HostSpace>::accessible) {
     register_convert_type<int, float, int, Device, SpmvSerial>(path, bs);
+  }
+#endif
+
+  register_convert_type<int, double, int, Device, SpmvDefault>(path, bs);
+  register_convert_type<int, double, int, Device, SpmvNative>(path, bs);
+  register_convert_type<int, double, int, Device, SpmvApp>(path, bs);
+  register_convert_type<int, double, int, Device, SpmvModifiedApp>(path, bs);
+  register_convert_type<int, double, int, Device, SpmvTpetra>(path, bs);
+#if defined(KOKKOS_ENABLE_SERIAL)
+  if constexpr (Kokkos::SpaceAccessibility<Device, Kokkos::HostSpace>::accessible) {
+    register_convert_type<int, double, int, Device, SpmvSerial>(path, bs);
+  }
+#endif
+
+  register_convert_type<int, float, unsigned, Device, SpmvDefault>(path, bs);
+  register_convert_type<int, float, unsigned, Device, SpmvNative>(path, bs);
+  register_convert_type<int, float, unsigned, Device, SpmvApp>(path, bs);
+  register_convert_type<int, float, unsigned, Device, SpmvModifiedApp>(path, bs);
+  register_convert_type<int, float, unsigned, Device, SpmvTpetra>(path, bs);
+#if defined(KOKKOS_ENABLE_SERIAL)
+  if constexpr (Kokkos::SpaceAccessibility<Device, Kokkos::HostSpace>::accessible) {
+    register_convert_type<int, float, unsigned, Device, SpmvSerial>(path, bs);
   }
 #endif
 
@@ -482,16 +494,6 @@ void register_converts(const fs::path &path, const size_t bs) {
 template <typename Device>
 void register_expands(const fs::path &path) {
   // clang-format off
-  register_expand_type<int, float, unsigned, Device, SpmvDefault>(path);
-  register_expand_type<int, float, unsigned, Device, SpmvNative>(path);
-  register_expand_type<int, float, unsigned, Device, SpmvApp>(path);
-  register_expand_type<int, float, unsigned, Device, SpmvModifiedApp>(path);
-  register_expand_type<int, float, unsigned, Device, SpmvTpetra>(path);
-#if defined(KOKKOS_ENABLE_SERIAL)
-  if constexpr (Kokkos::SpaceAccessibility<Device, Kokkos::HostSpace>::accessible) {
-    register_expand_type<int, float, unsigned, Device, SpmvSerial>(path);
-  }
-#endif
 
   register_expand_type<int, float, int, Device, SpmvDefault>(path);
   register_expand_type<int, float, int, Device, SpmvNative>(path);
@@ -503,6 +505,30 @@ void register_expands(const fs::path &path) {
     register_expand_type<int, float, int, Device, SpmvSerial>(path);
   }
 #endif
+
+  register_expand_type<int, double, int, Device, SpmvDefault>(path);
+  register_expand_type<int, double, int, Device, SpmvNative>(path);
+  register_expand_type<int, double, int, Device, SpmvApp>(path);
+  register_expand_type<int, double, int, Device, SpmvModifiedApp>(path);
+  register_expand_type<int, double, int, Device, SpmvTpetra>(path);
+#if defined(KOKKOS_ENABLE_SERIAL)
+  if constexpr (Kokkos::SpaceAccessibility<Device, Kokkos::HostSpace>::accessible) {
+    register_expand_type<int, double, int, Device, SpmvSerial>(path);
+  }
+#endif
+
+  register_expand_type<int, float, unsigned, Device, SpmvDefault>(path);
+  register_expand_type<int, float, unsigned, Device, SpmvNative>(path);
+  register_expand_type<int, float, unsigned, Device, SpmvApp>(path);
+  register_expand_type<int, float, unsigned, Device, SpmvModifiedApp>(path);
+  register_expand_type<int, float, unsigned, Device, SpmvTpetra>(path);
+#if defined(KOKKOS_ENABLE_SERIAL)
+  if constexpr (Kokkos::SpaceAccessibility<Device, Kokkos::HostSpace>::accessible) {
+    register_expand_type<int, float, unsigned, Device, SpmvSerial>(path);
+  }
+#endif
+
+
 
   register_expand_type<int64_t, double, uint64_t, Device, SpmvDefault>(path);
   register_expand_type<int64_t, double, uint64_t, Device, SpmvNative>(path);
