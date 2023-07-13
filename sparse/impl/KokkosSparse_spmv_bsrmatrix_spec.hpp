@@ -139,6 +139,13 @@ struct SPMV_MV_BSRMATRIX {
 // actual implementations to be compiled
 #if !defined(KOKKOSKERNELS_ETI_ONLY) || KOKKOSKERNELS_IMPL_COMPILE_LIBRARY
 
+// these should all be different
+constexpr inline const char * ALG_V41 = "v4.1";
+constexpr inline const char * ALG_TPETRA = "tpetra";
+constexpr inline const char * ALG_APP = "app";
+constexpr inline const char * ALG_V42 = "v4.2";
+constexpr inline const char * ALG_TC = "experimental_bsr_tc";
+
 template <class AT, class AO, class AD, class AM, class AS, class XT, class XL,
           class XD, class XM, class YT, class YL, class YD, class YM>
 struct SPMV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM, false,
@@ -152,32 +159,51 @@ struct SPMV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM, false,
       const KokkosKernels::Experimental::Controls &controls, const char mode[],
       const YScalar &alpha, const AMatrix &A, const XVector &X,
       const YScalar &beta, const YVector &Y) {
-    if ((mode[0] == KokkosSparse::NoTranspose[0])) {
-      if (controls.isParameterSetTo("algorithm", "tpetra")) {
+
+    const bool modeIsNoTrans = (mode[0] == KokkosSparse::NoTranspose[0]);
+
+    if (modeIsNoTrans) {
+      if (controls.isParameterSetTo("algorithm", ALG_TPETRA)) {
         KokkosSparse::Impl::apply_tpetra(alpha, A, X, beta, Y);
         return;
       }
-      if (controls.isParameterSetTo("algorithm", "app")) {
+      if (controls.isParameterSetTo("algorithm", ALG_APP)) {
         KokkosSparse::Impl::apply_app(alpha, A, X, beta, Y);
-        return;
-      }
-      if (controls.isParameterSetTo("algorithm", "modified_app")) {
-        KokkosSparse::Impl::apply_modified_app(alpha, A, X, beta, Y);
         return;
       }
     }
 
-    if ((mode[0] == KokkosSparse::NoTranspose[0]) ||
-        (mode[0] == KokkosSparse::Conjugate[0])) {
-      bool useConjugate = (mode[0] == KokkosSparse::Conjugate[0]);
-      return Bsr::spMatVec_no_transpose(controls, alpha, A, X, beta, Y,
-                                        useConjugate);
-    } else if ((mode[0] == Transpose[0]) ||
-               (mode[0] == ConjugateTranspose[0])) {
-      bool useConjugate = (mode[0] == ConjugateTranspose[0]);
-      return Bsr::spMatVec_transpose(controls, alpha, A, X, beta, Y,
-                                     useConjugate);
+    const bool modeIsConjugate = (mode[0] == KokkosSparse::Conjugate[0]);
+    const bool modeIsConjugateTrans = (mode[0] == ConjugateTranspose[0]);
+    const bool modeIsTrans = (mode[0] == Transpose[0]);
+
+    // use V41 if requested 
+    if (controls.isParameterSetTo("algorithm", ALG_V41)) {
+      if (modeIsNoTrans || modeIsConjugate) {
+        return Bsr::spMatVec_no_transpose(controls, alpha, A, X, beta, Y,
+                                          modeIsConjugate);
+      } else if (modeIsTrans || modeIsConjugateTrans) {
+        return Bsr::spMatVec_transpose(controls, alpha, A, X, beta, Y,
+                                      modeIsConjugateTrans);
+      }
     }
+
+    // default to V42 if possible and nothing else is requested
+    if (modeIsNoTrans) {
+        KokkosSparse::Impl::apply_modified_app(alpha, A, X, beta, Y);
+        return;
+    }
+
+    // fall back to V41 all else fails
+    if (modeIsNoTrans || modeIsConjugate) {
+      return Bsr::spMatVec_no_transpose(controls, alpha, A, X, beta, Y,
+                                        modeIsConjugate);
+    } else if (modeIsTrans || modeIsConjugateTrans) {
+      return Bsr::spMatVec_transpose(controls, alpha, A, X, beta, Y,
+                                     modeIsConjugateTrans);
+    }
+
+    throw std::runtime_error("Internal logic error: no applicable BsrMatrix SpMV implementation . Please report this");
   }
 };
 
@@ -191,9 +217,8 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
   typedef typename YVector::non_const_value_type YScalar;
 
   enum class Method {
-    Fallback,     ///< Don't use tensor cores
-    TensorCores,  ///< use tensor cores
-    Tpetra        ///< Use the implementation cribbed from Tpetra
+    Fallback,    ///< Don't use tensor cores
+    TensorCores  ///< use tensor cores
   };
 
   /// Precision to use in the tensor core implementation
@@ -213,8 +238,7 @@ struct SPMV_MV_BSRMATRIX<AT, AO, AD, AM, AS, XT, XL, XD, XM, YT, YL, YD, YM,
       typedef typename AMatrix::non_const_value_type AScalar;
       typedef typename XVector::non_const_value_type XScalar;
       // try to use tensor cores if requested
-      if (controls.isParameter("algorithm") &&
-          controls.getParameter("algorithm") == "experimental_bsr_tc")
+      if (controls.isParameterSetTo("algorithm", "experimental_bsr_tc"))
         method = Method::TensorCores;
       // can't use tensor cores for complex
       if (Kokkos::ArithTraits<YScalar>::is_complex) method = Method::Fallback;
