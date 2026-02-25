@@ -5,29 +5,52 @@
 kokkoskernels_add_option("ENABLE_ALL_COMPONENTS" ON BOOL
   "Whether to build all the library's components. Default: ON")
 
-# BATCHED only depends on COMMON which
-# is always enabled so nothing more needs
-# to be enabled for this component.
-kokkoskernels_add_option("ENABLE_COMPONENT_BATCHED" OFF BOOL
+set(KokkosKernels_ENABLE_COMPONENT_BATCHED_DEFAULT OFF)
+if(KokkosKernels_ENABLE_ALL_COMPONENTS)
+  set(KokkosKernels_ENABLE_COMPONENT_BATCHED_DEFAULT ON)
+endif()
+kokkoskernels_add_option("ENABLE_COMPONENT_BATCHED"
+  ${KokkosKernels_ENABLE_COMPONENT_BATCHED_DEFAULT} BOOL
   "Whether to build the batched component. Default: OFF")
 
-# BLAS only depends on COMMON which
-# is always enabled so nothing more needs
-# to be enabled for this component.
-kokkoskernels_add_option("ENABLE_COMPONENT_BLAS" OFF BOOL
+set(KokkosKernels_ENABLE_COMPONENT_BLAS_DEFAULT OFF)
+if(KokkosKernels_ENABLE_ALL_COMPONENTS)
+  set(KokkosKernels_ENABLE_COMPONENT_BLAS_DEFAULT ON)
+endif()
+kokkoskernels_add_option("ENABLE_COMPONENT_BLAS"
+  ${KokkosKernels_ENABLE_COMPONENT_BLAS_DEFAULT} BOOL
   "Whether to build the blas component. Default: OFF")
 
-kokkoskernels_add_option("ENABLE_COMPONENT_LAPACK" OFF BOOL
+set(KokkosKernels_ENABLE_COMPONENT_LAPACK_DEFAULT OFF)
+if(KokkosKernels_ENABLE_ALL_COMPONENTS)
+  set(KokkosKernels_ENABLE_COMPONENT_LAPACK_DEFAULT ON)
+endif()
+kokkoskernels_add_option("ENABLE_COMPONENT_LAPACK"
+  ${KokkosKernels_ENABLE_COMPONENT_LAPACK_DEFAULT} BOOL
   "Whether to build the lapack component. Default: OFF")
 
-# SPARSE depends on everything else at the moment.
-kokkoskernels_add_option("ENABLE_COMPONENT_SPARSE" OFF BOOL
+set(KokkosKernels_ENABLE_COMPONENT_GRAPH_DEFAULT OFF)
+if(KokkosKernels_ENABLE_ALL_COMPONENTS)
+  set(KokkosKernels_ENABLE_COMPONENT_GRAPH_DEFAULT ON)
+endif()
+kokkoskernels_add_option("ENABLE_COMPONENT_GRAPH"
+  ${KokkosKernels_ENABLE_COMPONENT_GRAPH_DEFAULT} BOOL
+  "Whether to build the graph component. Default: OFF")
+
+set(KokkosKernels_ENABLE_COMPONENT_SPARSE_DEFAULT OFF)
+if(KokkosKernels_ENABLE_ALL_COMPONENTS)
+  set(KokkosKernels_ENABLE_COMPONENT_SPARSE_DEFAULT ON)
+endif()
+kokkoskernels_add_option("ENABLE_COMPONENT_SPARSE"
+  ${KokkosKernels_ENABLE_COMPONENT_SPARSE_DEFAULT} BOOL
   "Whether to build the sparse component. Default: OFF")
 
-# GRAPH depends on everything else at the moment.
-kokkoskernels_add_option("ENABLE_COMPONENT_GRAPH" OFF BOOL
-  "Whether to build the graph component. Default: OFF")
-kokkoskernels_add_option("ENABLE_COMPONENT_ODE" OFF BOOL
+set(KokkosKernels_ENABLE_COMPONENT_ODE_DEFAULT OFF)
+if(KokkosKernels_ENABLE_ALL_COMPONENTS)
+  set(KokkosKernels_ENABLE_COMPONENT_ODE_DEFAULT ON)
+endif()
+kokkoskernels_add_option("ENABLE_COMPONENT_ODE"
+  ${KokkosKernels_ENABLE_COMPONENT_ODE_DEFAULT} BOOL
   "Whether to build the ode component. Default: OFF")
 
 # Graph depends on everything else because it depends
@@ -47,16 +70,6 @@ if(KokkosKernels_ENABLE_COMPONENT_SPARSE)
   set(KokkosKernels_ENABLE_COMPONENT_BLAS    ON CACHE BOOL "" FORCE)
   set(KokkosKernels_ENABLE_COMPONENT_LAPACK  ON CACHE BOOL "" FORCE)
   set(KokkosKernels_ENABLE_COMPONENT_GRAPH   ON CACHE BOOL "" FORCE)
-endif()
-
-# If user requested to enable all components, enable all components
-if(KokkosKernels_ENABLE_ALL_COMPONENTS)
-  set(KokkosKernels_ENABLE_COMPONENT_BATCHED ON CACHE BOOL "" FORCE)
-  set(KokkosKernels_ENABLE_COMPONENT_BLAS    ON CACHE BOOL "" FORCE)
-  set(KokkosKernels_ENABLE_COMPONENT_LAPACK  ON CACHE BOOL "" FORCE)
-  set(KokkosKernels_ENABLE_COMPONENT_SPARSE  ON CACHE BOOL "" FORCE)
-  set(KokkosKernels_ENABLE_COMPONENT_GRAPH   ON CACHE BOOL "" FORCE)
-  set(KokkosKernels_ENABLE_COMPONENT_ODE     ON CACHE BOOL "" FORCE)
 endif()
 
 # KOKKOSKERNELS_ALL_COMPONENTS_ENABLED says whether all components are on,

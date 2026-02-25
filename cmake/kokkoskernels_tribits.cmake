@@ -149,24 +149,20 @@ endfunction()
 function(kokkoskernels_is_enabled)
   cmake_parse_arguments(PARSE "" "OUTPUT_VARIABLE" "COMPONENTS" ${ARGN})
 
-  if(KOKKOSKERNELS_ENABLED_COMPONENTS STREQUAL "ALL")
+  if(NOT PARSE_COMPONENTS)
     set(${PARSE_OUTPUT_VARIABLE} TRUE PARENT_SCOPE)
-  elseif(PARSE_COMPONENTS)
-    set(ENABLED TRUE)
-    foreach(comp ${PARSE_COMPONENTS})
-      string(TOUPPER ${comp} COMP_UC)
-      # make sure this is in the list of enabled components
-      if(NOT "${COMP_UC}" IN_LIST KOKKOSKERNELS_ENABLED_COMPONENTS)
-        # if not in the list, one or more components is missing
-        set(ENABLED FALSE)
-      endif()
-    endforeach()
-    set(${PARSE_OUTPUT_VARIABLE} ${ENABLED} PARENT_SCOPE)
-  else()
-    # we did not enable all components and no components
-    # were given as part of this - we consider this enabled
-    set(${PARSE_OUTPUT_VARIABLE} TRUE PARENT_SCOPE)
+    return()
   endif()
+
+  set(ENABLED TRUE)
+  foreach(comp ${PARSE_COMPONENTS})
+    string(TOUPPER ${comp} COMP_UC)
+    if(NOT KokkosKernels_ENABLE_COMPONENT_${COMP_UC})
+      set(ENABLED FALSE)
+      break()
+    endif()
+  endforeach()
+  set(${PARSE_OUTPUT_VARIABLE} ${ENABLED} PARENT_SCOPE)
 endfunction()
 
 function(kokkoskernels_add_executable_and_test ROOT_NAME)

@@ -35,19 +35,45 @@ Examples Options
 Component Options
 =================
 
-- ``KokkosKernels_ENABLED_COMPONENTS``: BOOL
-
-  - A list of components to enable in testing and building
-  - Default: ALL
-  - Valid: BATCHED BLAS LAPACK GRAPH SPARSE ALL
-
 - ``KokkosKernels_ENABLE_ALL_COMPONENTS``: BOOL
+
+  - Whether to build all library components. When ON (the default), sets the
+    initial cache value of each ``KokkosKernels_ENABLE_COMPONENT_<X>`` to ON.
+    A user-supplied ``-DKokkosKernels_ENABLE_COMPONENT_<X>=OFF`` overrides the
+    default for that component without affecting others.
+  - Default: ON
+
 - ``KokkosKernels_ENABLE_COMPONENT_BATCHED``: BOOL
+
+  - Whether to build the batched component.
+  - Default: ON (when ENABLE_ALL_COMPONENTS is ON), OFF otherwise.
+
 - ``KokkosKernels_ENABLE_COMPONENT_BLAS``: BOOL
+
+  - Whether to build the blas component.
+  - Default: ON (when ENABLE_ALL_COMPONENTS is ON), OFF otherwise.
+
 - ``KokkosKernels_ENABLE_COMPONENT_LAPACK``: BOOL
-- ``KokkosKernels_ENABLE_COMPONENT_SPARSE``: BOOL
+
+  - Whether to build the lapack component.
+  - Default: ON (when ENABLE_ALL_COMPONENTS is ON), OFF otherwise.
+
 - ``KokkosKernels_ENABLE_COMPONENT_GRAPH``: BOOL
+
+  - Whether to build the graph component. Enabling GRAPH also forces
+    BATCHED, BLAS, and SPARSE ON due to hard build dependencies.
+  - Default: ON (when ENABLE_ALL_COMPONENTS is ON), OFF otherwise.
+
+- ``KokkosKernels_ENABLE_COMPONENT_SPARSE``: BOOL
+
+  - Whether to build the sparse component. Enabling SPARSE also forces
+    BATCHED, BLAS, LAPACK, and GRAPH ON due to hard build dependencies.
+  - Default: ON (when ENABLE_ALL_COMPONENTS is ON), OFF otherwise.
+
 - ``KokkosKernels_ENABLE_COMPONENT_ODE``: BOOL
+
+  - Whether to build the ode component.
+  - Default: ON (when ENABLE_ALL_COMPONENTS is ON), OFF otherwise.
 
 ETI Options
 ===========

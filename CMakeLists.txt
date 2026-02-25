@@ -177,9 +177,14 @@ else()
   kokkoskernels_add_option("TEST_ETI_ONLY" ON BOOL
     "Whether to restrict testing to ETI types. Default: ON")
 
-  kokkoskernels_add_option("ENABLED_COMPONENTS" "ALL" STRING
-    "A list of components to enable in testing and building"
-    VALID_ENTRIES BATCHED BLAS LAPACK GRAPH SPARSE ALL)
+  if(DEFINED KokkosKernels_ENABLED_COMPONENTS)
+    message(DEPRECATION
+      "KokkosKernels_ENABLED_COMPONENTS is no longer supported and has no effect. "
+      "Use KokkosKernels_ENABLE_COMPONENT_<X> (BOOL) flags instead. "
+      "Valid component names: BATCHED BLAS LAPACK GRAPH SPARSE ODE. "
+      "If this variable is coming from a stale CMakeCache.txt, delete the cache "
+      "or re-run cmake with -UKokkosKernels_ENABLED_COMPONENTS.")
+  endif()
 
   # ==================================================================
   # Enable Device Types for ETI (exec- + mem-space)
