@@ -739,7 +739,8 @@ bool KokkosSPGEMM<HandleType, a_row_view_t_, a_lno_nnz_view_t_, a_scalar_nnz_vie
     sszm_compressMatrix.memory_space = m_space;
 #endif
     Kokkos::parallel_for("KokkosSparse::SingleStepZipMatrix::GPUEXEC",
-                         gpu_team_policy_t(n / suggested_team_size + 1, suggested_team_size, suggested_vector_size),
+                         gpu_team_policy_t((n + suggested_team_size - 1) / suggested_team_size, suggested_team_size,
+                                           suggested_vector_size),
                          sszm_compressMatrix);
   } else {
     if (!compress_in_single_step) {
