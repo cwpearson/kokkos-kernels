@@ -866,7 +866,8 @@ void KokkosSPGEMM<HandleType, a_row_view_t_, a_lno_nnz_view_t_, a_scalar_nnz_vie
   timer1.reset();
 
   if (exec_gpu) {
-    Kokkos::parallel_for(gpu_team_policy_t(m / suggested_team_size + 1, suggested_team_size, suggested_vector_size),
+    Kokkos::parallel_for(gpu_team_policy_t((m + suggested_team_size - 1) / suggested_team_size, suggested_team_size,
+                                           suggested_vector_size),
                          sc);
   } else {
     if (use_dense_accumulator) {
