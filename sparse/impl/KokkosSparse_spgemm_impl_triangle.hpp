@@ -1280,7 +1280,8 @@ void KokkosSPGEMM<
   timer1.reset();
 
   if (exec_gpu) {
-    Kokkos::parallel_for(gpu_team_policy_t(m / suggested_team_size + 1, suggested_team_size, suggested_vector_size),
+    Kokkos::parallel_for(gpu_team_policy_t((m + suggested_team_size - 1) / suggested_team_size, suggested_team_size,
+                                           suggested_vector_size),
                          sc);
   } else {
     if (!apply_compression) {
