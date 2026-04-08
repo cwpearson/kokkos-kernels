@@ -1442,7 +1442,8 @@ void KokkosSPGEMM<HandleType, a_row_view_t_, a_lno_nnz_view_t_, a_scalar_nnz_vie
 
   if (exec_gpu) {
     Kokkos::parallel_for("StructureC_NC::GPU_EXEC",
-                         gpu_team_policy_t(m / suggested_team_size + 1, suggested_team_size, suggested_vector_size),
+                         gpu_team_policy_t((m + suggested_team_size - 1) / suggested_team_size, suggested_team_size,
+                                           suggested_vector_size),
                          sc);
   } else {
     if (current_spgemm_algorithm == SPGEMM_KK_DENSE) {
@@ -1718,7 +1719,8 @@ void KokkosSPGEMM<HandleType, a_row_view_t_, a_lno_nnz_view_t_, a_scalar_nnz_vie
 
   if (exec_gpu) {
     Kokkos::parallel_for("KokkosSparse::StructureC::GPU_EXEC",
-                         gpu_team_policy_t(m / suggested_team_size + 1, suggested_team_size, suggested_vector_size),
+                         gpu_team_policy_t((m + suggested_team_size - 1) / suggested_team_size, suggested_team_size,
+                                           suggested_vector_size),
                          sc);
   } else {
     if (current_spgemm_algorithm == SPGEMM_KK_DENSE) {
